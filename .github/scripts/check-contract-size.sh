@@ -26,7 +26,16 @@ if [[ ${#contracts[@]} -eq 0 ]]; then
 fi
 
 # Build the contracts, get size info as JSON (ignore non-zero exit to always parse output)
-json=$(forge build --sizes --json || true)
+forge build --sizes --json | jq . > contract_sizes.json || true
+
+# Validate JSON output
+if ! jq empty contract_sizes.json 2>/dev/null; then
+    echo "forge build did not return valid JSON. Output:"
+    cat contract_sizes.json
+    exit 1
+fi
+
+json=$(cat contract_sizes.json)
 
 # Filter JSON: keep only contracts/libraries from src/
 json=$(echo "$json" | jq --argjson keys "$(printf '%s\n' "${contracts[@]}" | jq -R . | jq -s .)" '
