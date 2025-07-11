@@ -81,6 +81,7 @@ Total Lockup Required = (paymentRate × lockupPeriod) + lockupFixed
 - *Purpose:* Provides a pool of funds for immediate, one-time payments that are not part of the regular payment stream.
 - *How it works:* The contract allows the operator to make one-time payments (e.g., onboarding fees, bonuses, penalties) directly from this bucket. These payments are deducted from `lockupFixed`. The client must ensure there is enough in `lockupFixed` to cover any planned or potential one-time payments.
 - *Use case:* A client agrees to pay a 5-token onboarding fee to the service provider at the start of the contract. This is set aside in `lockupFixed` and can be paid out immediately, independent of the payment stream.
+- *Note:* Unlike streaming lockup the fixed lockup is *not* reserved. When an account spends out of fixed lockup it reduce the lockup requirement and the overall lockup for that account.
 
 #### How They Work Together
 - **Total Lockup Required:** The contract enforces that the sum of both buckets is always locked:
