@@ -20,6 +20,10 @@ Error: server returned an error response: error code 11: message execution faile
 02: f01009 (method 1) -- EVM byte code length (40517) is exceeding the maximum allowed of 24576 (16)
 ```
 
+## Root Cause
+
+The contract size increases in Foundry `v1.0` and later because the Solidity optimizer is disabled by default, whereas it was previously enabled. This results in much larger bytecode unless you explicitly enable the optimizer in your configuration.
+
 ## Solution
 
 To restore the previous behavior and ensure your contracts remain deployable, **explicitly enable the optimizer** in your `foundry.toml` configuration file:
