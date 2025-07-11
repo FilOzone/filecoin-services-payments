@@ -3,6 +3,7 @@
 The FWS Payments contract enables ERC20 token payment flows through "rails" - automated payment channels between clients and recipients. The contract supports continuous payments, one-time transfers, and payment validation/arbitration.
 
 - [Deployment Info](#deployment-info)
+- [Migration to Foundry v1.0 and Later](docs/migration-to-foundry-v1.md) *(read this if upgrading from pre-v1.0 Foundry or contract exceeds the EIP-170 size limit)*
 - [Key Concepts](#key-concepts)
 - [Core Functions](#core-functions)
   - [Account Management](#account-management)
