@@ -9,8 +9,10 @@ This document exists as a supplement to the very thorough and useful README. The
 - [Operator Approval](#operator-approval)
 - [Accounts and Account Settlement](#accounts-and-account-settlement)
 - [Rails and Rail Settlement](#rails-and-rail-settlement)
-- [Rail States](#rail-states)
-- [Validation](#validation)
+    - [Validation](#validation)
+	- [One Time Payments](#one-time-payments)
+- [Rail Termination](#rail-termination)
+
 
 
 ## Skeleton Keys for Understanding 
@@ -30,6 +32,8 @@ The payments contract has two main methods of payment: rate based and one time. 
 To recap from the README the Streaming Lockup are funds that must be locked to cover a rail's `lockupPeriod` (for motivation see the README). Internally the payments contract does not consistently organize this bucket of funds separately but sometimes mixes it in with its accounting for fixed lockup. The accounting for approval and accounts *mixes buckets* while rail accounting keeps them separate. `lockupAllowance` and `lockupCurrent` both track one number that is a sum of streaming lockups for rate requirements and fixed lockup for one time payment coverage.
 
 As an example of how this manifests itself consider a call to `modifyRailPayment` increasing the payment rate of a rail.  For this operation to go through not only does the `rateAllowance` need to be high enough for the operator increase its rate usage, the `lockupAllowance` must also be high enough to cover the new component of streaming lockup.
+
+A more subtle manifestation of this mixing is on display with the contract's restriction of lockup modification on terminated rails. For technical reasons there is a possible delay between streaming lockup release and `lockupAllownace` reduction.  And with mixing of buckets this would open the operator to making extra one time payments using the portion of the allowance reserved for the streaming lockup.
 
 ### Invariants are Enforced Eagerly
 
@@ -60,9 +64,9 @@ Another quirk of the allowance system is the difference with which rate changes 
 
 ## Accounts and Account Settlement
 
-Account settlement roughly speaking flows funds out of a depositing payer's account into a staging bucket without completing the flow of funds to the payee -- that part is done during rail settlement.  To enable the contract to efficiently handle many payment rails paying one account, accounts only maintain global state of lockup requirements.  Account track deposited funds, total locked funds, rate of continuous lockup and the last epoch they were settled at.  
+Account settlement roughly speaking flows funds out of a depositing payer's account into a staging bucket (`lockupCurrent`) without completing the flow of funds to the payee -- that part is done per-rail during rail settlement.  To enable the contract to efficiently handle account settlement over many rails, accounts only maintain global state of the lockup requirements of all rails: `lockupRate`.  Accounts track deposited funds, total locked funds, rate of continuous lockup and the last epoch they were settled at.  
 
-The account struct 
+The Account struct 
 ```solidity
     struct Account {
         uint256 funds;
@@ -73,7 +77,40 @@ The account struct
     }
 ```
 
-The `lockupCurrent` field is the intermediate bucket holding onto funds claimed by rails.  The free funds of the account are `funds` - `lockupCurrent`.  
+The `lockupCurrent` field is the intermediate bucket holding onto funds claimed by rails.  The free funds of the account are `funds` - `lockupCurrent`.  Free funds flow into `lockupCurrent` at `lockupRate` tokens per epoch.
+
+As noted 
 
 
 ## Rails and Rail Settlement
+
+
+- settle rails by segments, segments are held in the `RateChangeQueue` which tracks each segment of time that has a different rate.
+  - validation run for settling each segment
+
+
+### One Time Payments
+
+### Rate Changes 
+
+I think my "bug" might be nothing because there is an invariant that rate changes are disallowed on rails that are not fully settled.  I'll need to go back and look through that.
+
+### Validation 
+- validation can modify
+  - the settlement time 
+  - the actual amount settled over that time 
+  
+- note that when the validator withholds some of the funds from settlement rail settlement still unlocks those funds from the `lockupCurrent` bucket in the payer account.  Essentially the validator flows those funds back to the payer.
+
+
+## Termination
+
+When calling settle on a terminated rail, one final round of state change is made so that the rail is considered finalized and completely finished in the system. 
+
+An interesting thing happening in finalize is that only upon finalization do we reduce operator approval down to 0.  One half of this makes sense -- the fixed lockup.  Any of that remaining we remove.  The part that is a bit delayed is the streaming lockup.  The streaming lockup is continually paid out during the window between termination and finalization but the approval remains in place until then.  One edge case is that the operator is free to lockup more funds in fixed lockup if it is periodically rail settling out funds from the account lockup's streaming lockup portion.
+
+However there is nothing weird you can do here because modifying lockup is constrained after a rail is terminated.  All you can do is reduce the fixed lockup.  So this approval set for the streaming lockup is actually never available for one time payments and nothing bad can really happen.  
+
+The other thing I'm confident about is that we are never double removing an approval which would lead to constraining over withdrawal bugs with shared rails for the same operator.  For modify down and OTP we remove the lockup approval.  And during settlement of rate funds in the terminated context we don't actually ever spend our lockup allowance even though we're settling rails out of account lockup and therefore technically should be.
+
+

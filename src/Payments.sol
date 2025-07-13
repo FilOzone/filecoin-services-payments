@@ -782,8 +782,7 @@ contract Payments is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
         if (isTerminated) {
             effectiveLockupPeriod = remainingEpochsForTerminatedRail(rail, railId);
         } else {
-            effectiveLockupPeriod =
-                isAccountLockupFullySettled(payer) ? rail.lockupPeriod : 0;
+            effectiveLockupPeriod = rail.lockupPeriod;
         }
 
         // Verify one-time payment doesn't exceed fixed lockup
