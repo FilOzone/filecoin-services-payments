@@ -6,7 +6,7 @@ This document exists as a supplement to the very thorough and useful README. The
 	- [Three Core Datastructures](#three-core-datastructures)
 	- [The Fundamental Flow of Funds](#the-fundamental-flow-of-funds)
 	- [Mixing of Buckets](#mixing-of-buckets)
-	- [Invariants Enforced Eagerly](#invariants-enforced-eagerly)
+	- [Invariants Enforced Eagerly](#invariants-are-enforced-eagerly)
 - [Operator Approval](#operator-approval)
 - [Accounts and Account Settlement](#accounts-and-account-settlement)
 - [Rails and Rail Settlement](#rails-and-rail-settlement)
@@ -30,21 +30,21 @@ Each public key identity can have multiple Accounts of different token type. Eac
 
 The first key principle of fund movements: 
 
-> All funds paid from payer to payee in the payment contract are 1) deposited into an account 2) temporarily locked up in the `lockupCurrent` of the payer account 3) moved into the payee account
+> All funds paid from payer to payee in the payment contract are 1) deposited into the payer's account 2) temporarily locked up in the `lockupCurrent` of the payer account 3) moved into the payee account
 
 This applies to both one time payments and standard rate based rail payment flows.
 
 In the case of live rail payment flows funds are temporarily locked during account settlement and moved into the payee account during rail settlement.  We'll refer to these lockup funds as "temporary settling lockup" in this document.
 
-Similarly rail payment flows on terminated rails are locked upon the original rate setting as streaming lockup and are released during settlement of the terminated rail.
-
 For one time payments lockup is explicitly added to `lockupCurrent` of the payer account when setting up the rail for one time payments.  Payments are processed immediately in `modifyRailPayment` with a nonzero `oneTimePayment` parameter -- there is no waiting for rail settlement to process these funds.
 
-One important difference between these two three cases is how they interact with operator approval.  Live rail payment flow approval is managed with `rateAllowance` and `rateUsage`.  Hence temporary settling lockup is added to `lockupCurrent` without any modifications to `lockupUsage` or requirements on `lockupAllowance`.  In contrast the streaming lockup that covers terminated rail settlement is locked throughout rail duration and consumes `lockupAllowance` to increase the operator approval's `lockupUsage`. And of course this is also true of fixed lockup for one time payments.
+Rail payment flows on terminated rails are locked (as the streaming lockup) when `modifyRailPayment` increases the rail's payment rate and are released during settlement of the terminated rail.  This is a very essential point to understand the payments contract.  Rate based payments paid out during the `lockupPeriod` for a terminated rail are in some ways more similar to one time payments than live rail payment streams.  All rails are required to lockup the amount needed to cover the entire lockup period for any live rail's current rate. But unlike one time payments they are released at the rail's rate through time. Finally these funds *must* flow from payer to payee, barring validation interference, unlike one time payments.
+
+One important difference between these three cases is how they interact with operator approval.  Live rail payment flow approval is managed with `rateAllowance` and `rateUsage`.  Hence temporary settling lockup is added to `lockupCurrent` without any modifications to `lockupUsage` or requirements on `lockupAllowance`.  In contrast the streaming lockup that covers terminated rail settlement is locked throughout rail duration and consumes `lockupAllowance` to increase the operator approval's `lockupUsage`. And of course this is also true of fixed lockup for one time payments.
 
 The second key principle of fund movements:
 
-> Payer account funds may be set aside for transfer but end up unused in which case they are 1) first deposited into an account 2) temporarily locked up in `lockupCurrent` of the payer account 3) moved back to the available balance of the payer account
+> Payer account funds may be set aside for transfer but end up unused in which case they are 1) first deposited into the payer's account 2) temporarily locked up in `lockupCurrent` of the payer account 3) moved back to the available balance of the payer account
 
 This is the case for unused fixed lockup set aside for one time payments that are never made.  This is also true for funds that don't end up flowing during rail settlement because rail validation fails.
 
@@ -85,7 +85,6 @@ Both fixed and streaming lockup from all rails of all operators are contained in
 |                   |         |     ...                           |
 +-------------------+         +-----------------------------------+
 ```
-
 
 The payments contract has two main methods of payment: rate based payments and one time payments. Each core datastructure has a pairs of variables that seem to reflect this dichotomy: (`rateUsage`/`rateAllowance`, `lockupUsage`/`lockupAllowance`) for operator approval, (`lockupCurrent`, `lockupRate`) for accounts, and (`lockupFixed`, `paymentRate`) for rails. The payments contract does separate accounting based on rates and funds available for one time payment largely by manipulating these separate variables. But there is a big exception that shows up throughout -- the streaming lockup.
 
@@ -170,7 +169,7 @@ I think my "bug" might be nothing because there is an invariant that rate change
 - note that when the validator withholds some of the funds from settlement rail settlement still unlocks those funds from the `lockupCurrent` bucket in the payer account.  Essentially the validator flows those funds back to the payer.
 
 
-## Termination
+## Rail Termination
 
 When calling settle on a terminated rail, one final round of state change is made so that the rail is considered finalized and completely finished in the system. 
 
