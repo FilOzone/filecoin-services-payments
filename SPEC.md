@@ -1,3 +1,4 @@
+
 # Payments Contract In Depth Implementation SPEC 
 
 This document exists as a supplement to the very thorough and useful README. The README covers essentially everything you need to know as a user of the payments contract. This document exists for very advanced users and implementers to cover the internal workings of the contract in depth. You should understand the README first before reading this document.
@@ -10,8 +11,9 @@ This document exists as a supplement to the very thorough and useful README. The
 - [Operator Approval](#operator-approval)
 - [Accounts and Account Settlement](#accounts-and-account-settlement)
 - [Rails and Rail Settlement](#rails-and-rail-settlement)
-    - [Validation](#validation)
 	- [One Time Payments](#one-time-payments)
+	- [Rail Changes](#rail-changes)
+    - [Validation](#validation)	
 - [Rail Termination](#rail-termination)
 
 
@@ -24,7 +26,7 @@ Some concepts are a bit tricky and show up throughout the code in subtle ways. O
 
 There are three essential data structures in this contract.  The [`Account`](#accounts-and-account-settlement), the [`Rail`](#rails-and-rail-settlement) and the [`OperatorApproval`](#operator-approval). Accounts hold funds of a particular token associated with a public key. They are used for paying and receiving payment. Rails are used to track point to point payments between Accounts. OperatorApprovals allow an operator contract to setup and modify payments between parties under usage contraints.
 
-Each public key identity can have multiple Accounts of different token type. Each Account can have multiple operators that it has approved to process payments. Each Account can also have multiple outgoing payment rails. Each rail represents a different payee. There is one operator per rail. One operator can manage many rails and each rail can have a different operator. To consider the general picture it can be helpful to think of a set of operators per account and a set of rails per operator. 
+A public key identity can have multiple Accounts of different token type. Each Account can have multiple operators that it has approved to process payments. Each Account can also have multiple outgoing payment rails. Each rail represents a different payee. There is one operator per rail. One operator can manage many rails and each rail can have a different operator. To consider the general picture it can be helpful to think of a set of operators per account and a set of rails per operator. 
 
 ### The Fundamental Flow of Funds
 
@@ -34,11 +36,11 @@ The first key principle of fund movements:
 
 This applies to both one time payments and standard rate based rail payment flows.
 
-In the case of live rail payment flows funds are temporarily locked during account settlement and moved into the payee account during rail settlement.  We'll refer to these lockup funds as "temporary settling lockup" in this document.
+In the case of live rail payment flows, funds are temporarily locked during account settlement and moved into the payee account during rail settlement.  We'll refer to these lockup funds as "temporary settling lockup" in this document.
 
-For one time payments lockup is explicitly added to `lockupCurrent` of the payer account when setting up the rail for one time payments.  Payments are processed immediately in `modifyRailPayment` with a nonzero `oneTimePayment` parameter -- there is no waiting for rail settlement to process these funds.
+For one time payments lockup is explicitly added to `lockupCurrent` of the payer account when setting up the rail with a call to`modifyRailLockup`.  Payments are processed immediately in `modifyRailPayment` with a nonzero `oneTimePayment` parameter -- there is no waiting for rail settlement to process these funds.
 
-Rail payment flows on terminated rails are locked (as the streaming lockup) when `modifyRailPayment` increases the rail's payment rate and are released during settlement of the terminated rail.  This is a very essential point to understand the payments contract.  Rate based payments paid out during the `lockupPeriod` for a terminated rail are in some ways more similar to one time payments than live rail payment streams.  All rails are required to lockup the amount needed to cover the entire lockup period for any live rail's current rate. But unlike one time payments they are released at the rail's rate through time. Finally these funds *must* flow from payer to payee, barring validation interference, unlike one time payments.
+Rail payment flows on terminated rails are locked and known as the streaming lockup. These funds are locked when `modifyRailPayment` increases the rail's payment rate or when `modifyRailLockup` changes the lockup period.  They are released during settlement of the terminated rail.  This is a very essential point to understand the payments contract.  Rate based payments paid out during the `lockupPeriod` for a terminated rail share characteristics of both one time payments and live rail payment streams.  Like one time payments all rails are required to lockup up front the amount needed to cover the lockup period payment.  Like live rail payments they `lockupPeriod` payments are released at the rail's rate through time. Unique to rail payments after termination is that they *must* flow from payer to payee, barring validation interference.  One time payments have no such requirement and live rail payments can always be stopped by terminating the rail.
 
 One important difference between these three cases is how they interact with operator approval.  Live rail payment flow approval is managed with `rateAllowance` and `rateUsage`.  Hence temporary settling lockup is added to `lockupCurrent` without any modifications to `lockupUsage` or requirements on `lockupAllowance`.  In contrast the streaming lockup that covers terminated rail settlement is locked throughout rail duration and consumes `lockupAllowance` to increase the operator approval's `lockupUsage`. And of course this is also true of fixed lockup for one time payments.
 
@@ -67,7 +69,7 @@ Schematic of the contents of the Operator approval `lockupUsage` bucket of funds
 ```
 
 Schematic of the contents of the account `lockupCurrent` bucket of funds. 
-Both fixed and streaming lockup from all rails of all operators are contained in the single `lockupCurrent` bucket of funds tracked in the `Account` datastructure.  Additionally temporary settling lockup waiting to be released to rail payees on rail settlement is also held in this bucket.
+Fixed, streaming and temporary settling lockup from all rails of all operators are contained in the single `lockupCurrent` bucket of funds tracked in the `Account` datastructure.
 ```
 +-------------------+         +-----------------------------------+         
 |      Account      |         | rail 1 (operator A) fixed lockup  |
@@ -88,7 +90,7 @@ Both fixed and streaming lockup from all rails of all operators are contained in
 
 The payments contract has two main methods of payment: rate based payments and one time payments. Each core datastructure has a pairs of variables that seem to reflect this dichotomy: (`rateUsage`/`rateAllowance`, `lockupUsage`/`lockupAllowance`) for operator approval, (`lockupCurrent`, `lockupRate`) for accounts, and (`lockupFixed`, `paymentRate`) for rails. The payments contract does separate accounting based on rates and funds available for one time payment largely by manipulating these separate variables. But there is a big exception that shows up throughout -- the streaming lockup.
 
-To recap from the README the streaming lockup are funds that must be locked to cover a rail's `lockupPeriod` between rail termination and rail finalization, i.e. its end of life. For motivation on the `lockupPeriod` see the README. Internally the payments contract does not consistently organize these buckets of funds separately but sometimes mixes them together. The accounting for approval and accounts *mixes these buckets* while rail accounting keeps them separate. `lockupUsage` and `lockupCurrent` both track one number that is a sum of streaming lockups for rate requirements during the `lockupPeriod` and fixed lockup for one time payment coverage.
+As explained in the README the streaming lockup are funds that must be locked to cover a rail's `lockupPeriod` between rail termination and rail finalization, i.e. its end of life. For motivation on the `lockupPeriod` see the README. Internally the payments contract does not consistently organize these buckets of funds separately but sometimes mixes them together. The accounting for approval and accounts *mixes these buckets* while rail accounting keeps them separate. `lockupUsage` and `lockupCurrent` both track one number that is a sum of streaming lockups for rate requirements during the `lockupPeriod` and fixed lockup for one time payment coverage.  Further complicating things the account data structure also inclues temporary settling lockup between account settlement and rail settlement.  See the schematics above.
 
 As an example of how this manifests itself consider a call to `modifyRailPayment` increasing the payment rate of a rail.  For this operation to go through not only does the `rateAllowance` need to be high enough for the operator increase its `rateUsage`, the `lockupAllowance` must also be high enough to cover the new component of streaming lockup in the `lockupUsage`.
 
@@ -96,7 +98,7 @@ A more subtle manifestation of this mixing is on display with the contract's res
 
 ### Invariants are Enforced Eagerly
 
-The most pervasive pattern in the payments contract is the usage of pre and post condition modifiers. The bulk of these modifier calls force invariants within the fields of the three core datastructures to be true. The major invariant being enforced is that accounts are always settled as far as possible. In fact this is the only place where account settlement occurs (for more detail see [section below](#accounts-and-account-settlement)). Additionally there are invariants making sure that rails don't attempt to spend more than their fixed lockup and that account locked funds are always covered by account balance. There are also selectively used invariants asserting that rails are in particular termination states for particular methods.
+The most pervasive pattern in the payments contract is the usage of pre and post condition modifiers. The bulk of these modifier calls force invariants within the fields of the three core datastructures to be true. The major invariant being enforced is that accounts are always settled as far as possible. In fact function modifiers is the only place where account settlement occurs (for more detail see [section below](#accounts-and-account-settlement)). Additionally there are invariants making sure that rails don't attempt to spend more than their fixed lockup and that account locked funds are always covered by account balance. There are also selectively used invariants asserting that rails are in particular termination states for particular methods.
 
 Every interesting function modifying the state of the payments contract runs a group of core account settlement related invariant pre and post conditions via the `settleAccountLockupBeforeAndAfter` or the `settleAccountLockupBeforeAndAfterForRail` modifier. This is a critical mechanism to be aware of when reasoning through which invariants apply during the execution of payments contract methods.
 
@@ -136,14 +138,31 @@ The Account struct
     }
 ```
 
-The `lockupCurrent` field is the intermediate bucket holding onto funds claimed by rails.  The free funds of the account are `funds` - `lockupCurrent`.  Free funds flow into `lockupCurrent` at `lockupRate` tokens per epoch.
+The `lockupCurrent` field is the intermediate bucket holding onto funds claimed by rails.  The free funds of the account are `funds` - `lockupCurrent`.  Free funds flow into `lockupCurrent` at `lockupRate` tokens per epoch. 
 
-As noted 
+As mentioned above account settlement is a precondition to every state modifying call in the payments contract. It is actually structured as both a pre and post condition 
 
+```solidity
+ modifier settleAccountLockupBeforeAndAfter(address token, address owner, bool settleFull) {
+        Account storage payer = accounts[token][owner];
+
+        // Before function execution
+        performSettlementCheck(token, owner, payer, settleFull, true);
+
+        _;
+
+        // After function execution
+        performSettlementCheck(token, owner, payer, settleFull, false);
+    }
+```
+
+The core of account settlement is calculating how much funds should be flowing out of this account since the previous settlement epoch `lockupLastSettledAt`. In this simple case `lockupRate * (block.current - lockupLastSettledAt)` is added to `lockupCurrent`.  If there are insufficient funds to do this then account settlement first calculates how many epochs can be settled up to with the current funds: `fractionalEpochs = availableFunds / account.lockupRate;`.  Then settlement is completed up to `lockupLastSettledAt + fractoinalEpochs`.
+
+The withdraw function is special in that it requires that the account is fully settled by assigning `true` to `settleFull` in its modifier. All other methods allow account settlement to progress as far as possible without fully settling as valid pre and post conditions.  This means that accounts are allowed to be in debt with lower temporary settling lockup in their `lockupCurrent` then the total that all the account's rails have a claim on. Note that this notion of debt does not take into account the streaming lockup. If the rail is terminated then a `lockupPeriod` of funds is guaranteed to be covered since those funds are enforced to be locked in `lockupCurrent` upon rail modification.
 
 ## Rails and Rail Settlement
 
-
+TODO fixup
 - settle rails by segments, segments are held in the `RateChangeQueue` which tracks each segment of time that has a different rate.
   - validation run for settling each segment
   - point of segments is to track minimal info for lazy settlement.  the firt time we run a settlement through time all of the rate changes will be processed and we'll have an empty queue again.
@@ -157,11 +176,12 @@ As noted
 
 ### One Time Payments
 
-### Rate Changes 
-
-I think my "bug" might be nothing because there is an invariant that rate changes are disallowed on rails that are not fully settled.  I'll need to go back and look through that.
+### Rail Changes 
 
 ### Validation 
+
+TODO fixup
+
 - validation can modify
   - the settlement time 
   - the actual amount settled over that time 
@@ -170,6 +190,8 @@ I think my "bug" might be nothing because there is an invariant that rate change
 
 
 ## Rail Termination
+
+TODO fixup
 
 When calling settle on a terminated rail, one final round of state change is made so that the rail is considered finalized and completely finished in the system. 
 
