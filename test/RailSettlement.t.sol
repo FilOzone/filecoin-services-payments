@@ -814,7 +814,16 @@ contract RailSettlementTest is Test, BaseTestHelper {
     function testPartialSettleOfZeroSegment() public {
         uint256 rateOn = 1;
         uint256 rateOff = 0;
+        scaffoldPartialSettleOfSegment(rateOn, rateOff);
+    }
 
+    function testPartialSettleOfNonZeroSegment() public {
+        uint256 rateOn = 2;
+        uint256 rateOff = 1;
+        scaffoldPartialSettleOfSegment(rateOn, rateOff);
+    }
+
+    function scaffoldPartialSettleOfSegment(uint256 rateOn, uint256 rateOff) public {
         helper.setupOperatorApproval(USER1, OPERATOR, 1000 ether, 100000 ether, MAX_LOCKUP_PERIOD);
 
         uint256 railId = helper.setupRailWithParameters(
@@ -856,10 +865,10 @@ contract RailSettlementTest is Test, BaseTestHelper {
         vm.stopPrank();
 
         // Settle partway through the second segment
-        settlementHelper.settleRailAndVerify(railId, 150, 100, 150);
+        settlementHelper.settleRailAndVerify(railId, 151, 100 * rateOn + 50*rateOff, 151);
 
         // Settle the whole rail, we should see another 100 tokens transferred
-        settlementHelper.settleRailAndVerify(railId, 301, 100, 301);
+        settlementHelper.settleRailAndVerify(railId, 301, 50*rateOff + 100 * rateOn, 301);
     }
 
     function testModifyTerminatedRailBeyondEndEpoch() public {
