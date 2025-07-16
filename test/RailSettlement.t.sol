@@ -812,8 +812,8 @@ contract RailSettlementTest is Test, BaseTestHelper {
     }
 
     function testPartialSettleOfZeroSegment() public {
-        uint256 rateOn = 1 ;
-        uint256 rateOff = 0 ;
+        uint256 rateOn = 1;
+        uint256 rateOff = 0;
 
         helper.setupOperatorApproval(USER1, OPERATOR, 1000 ether, 100000 ether, MAX_LOCKUP_PERIOD);
 
