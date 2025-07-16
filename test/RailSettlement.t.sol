@@ -865,10 +865,10 @@ contract RailSettlementTest is Test, BaseTestHelper {
         vm.stopPrank();
 
         // Settle partway through the second segment
-        settlementHelper.settleRailAndVerify(railId, 151, 100 * rateOn + 50*rateOff, 151);
+        settlementHelper.settleRailAndVerify(railId, 151, 100 * rateOn + 50 * rateOff, 151);
 
         // Settle the whole rail, we should see another 100 tokens transferred
-        settlementHelper.settleRailAndVerify(railId, 301, 50*rateOff + 100 * rateOn, 301);
+        settlementHelper.settleRailAndVerify(railId, 301, 50 * rateOff + 100 * rateOn, 301);
     }
 
     function testModifyTerminatedRailBeyondEndEpoch() public {
