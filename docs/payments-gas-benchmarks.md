@@ -2,6 +2,8 @@
 
 This file contains gas cost benchmarks for the payments contract.
 
+**Note:** These benchmarks were measured on [DATE] against commit [COMMIT_HASH]. Results may vary with different contract versions or network conditions.
+
 ## Calibration Network Gas Costs
 
 Below are the actual gas usage results for each payments contract operation, taken directly from transaction receipts on the Filecoin Calibration testnet after interacting with the Payments contract.
@@ -28,4 +30,4 @@ Below are the actual gas usage results for each payments contract operation, tak
 
 - These values represent the true cost users and operators pay on Filecoin FVM, including all protocol overhead.
 - Gas costs can slightly vary based on contract state, network congestion (base fee), and operation complexity.
-
+- These benchmarks were measured on 2025-07-17, with [this payments contract version](https://github.com/FilOzone/filecoin-services-payments/releases/tag/deployed%2Fcalibnet%2F0x0E690D3e60B0576D01352AB03b258115eb84A047. Results may vary with different contract versions or network conditions.
