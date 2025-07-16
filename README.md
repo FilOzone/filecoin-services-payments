@@ -33,6 +33,10 @@ The FWS Payments contract enables ERC20 token payment flows through "rails" - au
   - [Rail Termination (by operator)](#rail-termination-by-operator)
   - [Rail Settlement Without Validation](#rail-settlement-without-validation)
   - [Client Reducing Operator Allowance After Deal Proposal](#client-reducing-operator-allowance-after-deal-proposal)
+- [Contributing](#contributing)
+  - [Before Contributing](#before-contributing)
+  - [Pull Request Guidelines](#pull-request-guidelines)
+  - [Commit Message Guidelines](#commit-message-guidelines)
 - [License](#license)
 
 ## Deployment Info
@@ -748,6 +752,18 @@ Payments.modifyRailPayment(
 ## Contributing
 
 We welcome contributions to the payments contract! To ensure consistency and quality across the project, please follow these guidelines when contributing.
+
+### Before Contributing
+
+- **New Features**: Always create an issue first and discuss with maintainers before implementing new features. This ensures alignment with project goals and prevents duplicate work.
+- **Bug Fixes**: While you can submit bug fix PRs without prior issues, please include detailed reproduction steps in your PR description.
+
+### Pull Request Guidelines
+
+- **Link to Issue**: All feature PRs should reference a related issue (e.g., "Closes #123" or "Addresses #456").
+- **Clear Description**: Provide a detailed description of what your PR does, why it's needed, and how to test it.
+- **Tests**: Include comprehensive tests for new functionality or bug fixes.
+- **Documentation**: Update relevant documentation for any API or behavior changes.
 
 ### Commit Message Guidelines
 
