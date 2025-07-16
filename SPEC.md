@@ -4,7 +4,7 @@
 This document exists as a supplement to the very thorough and useful README. The README covers essentially everything you need to know as a user of the payments contract. This document exists for very advanced users and implementers to cover the internal workings of the contract in depth. You should understand the README first before reading this document.
 
 - [Skeleton Keys for Understanding](#skeleton-keys-for-understanding)
-	- [Three Core Datastructures](#three-core-datastructures)
+	- [Three Core Datastructures](#three-core-data-structures)
 	- [The Fundamental Flow of Funds](#the-fundamental-flow-of-funds)
 	- [Mixing of Buckets](#mixing-of-buckets)
 	- [Invariants Enforced Eagerly](#invariants-are-enforced-eagerly)
@@ -22,9 +22,9 @@ This document exists as a supplement to the very thorough and useful README. The
 
 Some concepts are a bit tricky and show up throughout the code in subtle ways. Once you understand them it makes things easier.
 
-### Three Core Datastructures
+### Three Core Data Structures
 
-There are three essential data structures in this contract.  The [`Account`](#accounts-and-account-settlement), the [`Rail`](#rails-and-rail-settlement) and the [`OperatorApproval`](#operator-approval). Accounts hold funds of a particular token associated with a public key. They are used for paying and receiving payment. Rails are used to track point to point payments between Accounts. OperatorApprovals allow an operator contract to setup and modify payments between parties under usage contraints.
+There are three essential data structures in this contract.  The [`Account`](#accounts-and-account-settlement), the [`Rail`](#rails-and-rail-settlement) and the [`OperatorApproval`](#operator-approval). Accounts hold funds of a particular token associated with a public key. They are used for paying and receiving payment. Rails are used to track point to point payments between Accounts. OperatorApprovals allow an operator contract to set up and modify payments between parties under usage constraints.
 
 A public key identity can have multiple Accounts of different token type. Each Account can have multiple operators that it has approved to process payments. Each Account can also have multiple outgoing payment rails. Each rail represents a different payee. There is one operator per rail. One operator can manage many rails and each rail can have a different operator. To consider the general picture it can be helpful to think of a set of operators per account and a set of rails per operator. 
 
@@ -40,7 +40,7 @@ In the case of live rail payment flows, funds are temporarily locked during acco
 
 For one time payments lockup is explicitly added to `lockupCurrent` of the payer account when setting up the rail with a call to`modifyRailLockup`.  Payments are processed immediately in `modifyRailPayment` with a nonzero `oneTimePayment` parameter -- there is no waiting for rail settlement to process these funds.
 
-Rail payment flows on terminated rails are locked and known as the streaming lockup. These funds are locked when `modifyRailPayment` increases the rail's payment rate or when `modifyRailLockup` changes the lockup period.  They are released during settlement of the terminated rail.  This is a very essential point to understand the payments contract.  Rate based payments paid out during the `lockupPeriod` for a terminated rail share characteristics of both one time payments and live rail payment streams.  Like one time payments all rails are required to lockup up front the amount needed to cover the lockup period payment.  Like live rail payments they `lockupPeriod` payments are released at the rail's rate through time. Unique to rail payments after termination is that they *must* flow from payer to payee, barring validation interference.  One time payments have no such requirement and live rail payments can always be stopped by terminating the rail.
+Rail payment flows on terminated rails are locked and known as the streaming lockup. These funds are locked when `modifyRailPayment` increases the rail's payment rate or when `modifyRailLockup` changes the lockup period.  They are released during settlement of the terminated rail.  This is a very essential point to understand the payments contract.  Rate based payments paid out during the `lockupPeriod` for a terminated rail share characteristics of both one time payments and live rail payment streams.  Like one time payments all rails are required to lockup up front the amount needed to cover the lockup period payment.  Like live rail payments the `lockupPeriod` payments are released at the rail's rate through time. Unique to rail payments after termination is that they *must* flow from payer to payee, barring validation interference.  One time payments have no such requirement and live rail payments can always be stopped by terminating the rail.
 
 One important difference between these three cases is how they interact with operator approval.  Live rail payment flow approval is managed with `rateAllowance` and `rateUsage`.  Hence temporary settling lockup is added to `lockupCurrent` without any modifications to `lockupUsage` or requirements on `lockupAllowance`.  In contrast the streaming lockup that covers terminated rail settlement is locked throughout rail duration and consumes `lockupAllowance` to increase the operator approval's `lockupUsage`. And of course this is also true of fixed lockup for one time payments.
 
