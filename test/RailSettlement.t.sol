@@ -812,17 +812,10 @@ contract RailSettlementTest is Test, BaseTestHelper {
     }
 
     function testPartialSettleOfZeroSegment() public {
-
         uint256 rateOn = 1 ether;
         uint256 rateOff = 0 ether;
 
-        helper.setupOperatorApproval(
-            USER1,
-            OPERATOR,
-            1000 ether,
-            100000 ether,
-            MAX_LOCKUP_PERIOD
-        );
+        helper.setupOperatorApproval(USER1, OPERATOR, 1000 ether, 100000 ether, MAX_LOCKUP_PERIOD);
 
         uint256 railId = helper.setupRailWithParameters(
             USER1,
@@ -835,35 +828,34 @@ contract RailSettlementTest is Test, BaseTestHelper {
             SERVICE_FEE_RECIPIENT // operator commision receiver
         );
 
-
         /* 
         |  rate == 1 | rate == 0 | rate == 1 |
         | 100 blocks | 100 blocks | 100 blocks |
                           X^                  Y^
                     First settle          Second settle
         */
-        // Advance 100 blocks and turn rate off 
+        // Advance 100 blocks and turn rate off
         // This adds a rate == 1, untilEpoch == 100 segment to the queue
         helper.advanceBlocks(100);
         vm.prank(OPERATOR);
         payments.modifyRailPayment(railId, rateOff, 0);
         vm.stopPrank();
 
-        // Advance 100 blocks and turn rate on 
+        // Advance 100 blocks and turn rate on
         // This adds a rate == 0, untilEpoch == 200 segment to the queue
         helper.advanceBlocks(100);
         vm.prank(OPERATOR);
         payments.modifyRailPayment(railId, rateOn, 0);
         vm.stopPrank();
 
-        // Advance 100 blocks and turn rate off 
+        // Advance 100 blocks and turn rate off
         // This adds a final rate == 1, untilEpoch == 300 segment to the queue
         helper.advanceBlocks(100);
         vm.prank(OPERATOR);
         payments.modifyRailPayment(railId, rateOff, 0);
         vm.stopPrank();
 
-        // Settle partway through the second segment 
+        // Settle partway through the second segment
         settlementHelper.settleRailAndVerify(railId, 150, 100 ether, 150);
 
         // Settle the whole rail, we should see another 100 tokens transferred
