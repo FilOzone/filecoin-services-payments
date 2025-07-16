@@ -3,7 +3,7 @@
 
 This document exists as a supplement to the very thorough and useful README. The README covers essentially everything you need to know as a user of the payments contract. This document exists for very advanced users and implementers to cover the internal workings of the contract in depth. You should understand the README first before reading this document.
 
-- [Skeleton Keys for Understanding](#keystones-for-understanding]
+- [Skeleton Keys for Understanding](#skeleton-keys-for-understanding)
 	- [Three Core Datastructures](#three-core-datastructures)
 	- [The Fundamental Flow of Funds](#the-fundamental-flow-of-funds)
 	- [Mixing of Buckets](#mixing-of-buckets)
