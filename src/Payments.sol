@@ -289,9 +289,8 @@ contract Payments is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
         require(
             !settleFull || isAccountLockupFullySettled(payer),
             isBefore
-                ? "payers's account lockup target was not met as a precondition of the requested operation"
-                :
-                "the requested operation would cause the payer's account lockup target to exceed the funds available in the account"
+                ? "payers's full account lockup was not met as a precondition of the requested operation"
+                : "payers's full account lockup was not met as a postcondition of the requested operation"
         );
 
         require(
@@ -782,8 +781,7 @@ contract Payments is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
         if (isTerminated) {
             effectiveLockupPeriod = remainingEpochsForTerminatedRail(rail, railId);
         } else {
-            effectiveLockupPeriod =
-                isAccountLockupFullySettled(payer) ? rail.lockupPeriod - (block.number - payer.lockupLastSettledAt) : 0;
+            effectiveLockupPeriod = rail.lockupPeriod;
         }
 
         // Verify one-time payment doesn't exceed fixed lockup
