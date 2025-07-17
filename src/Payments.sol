@@ -361,6 +361,32 @@ contract Payments is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
         );
     }
 
+    /// @notice Increases the rate and lockup allowances for an existing operator approval.
+    /// @param token The ERC20 token address for which the approval is being increased.
+    /// @param operator The address of the operator whose allowances are being increased.
+    /// @param rateAllowanceIncrease The amount to increase the rate allowance by.
+    /// @param lockupAllowanceIncrease The amount to increase the lockup allowance by.
+    /// @custom:constraint Operator must already be approved.
+    function increaseOperatorApproval(
+        address token,
+        address operator,
+        uint256 rateAllowanceIncrease,
+        uint256 lockupAllowanceIncrease
+    ) external nonReentrant validateNonZeroAddress(operator, "operator") {
+        OperatorApproval memory approval = operatorApprovals[token][msg.sender][operator];
+
+        // Operator must already be approved
+        require(approval.isApproved, Errors.OperatorNotApproved(msg.sender, operator));
+
+        // Calculate new allowances by adding increases to current values
+        uint256 newRateAllowance = approval.rateAllowance + rateAllowanceIncrease;
+        uint256 newLockupAllowance = approval.lockupAllowance + lockupAllowanceIncrease;
+
+        // Use existing function to update with new totals
+        // Keep the same approval status and maxLockupPeriod
+        _setOperatorApproval(token, operator, true, newRateAllowance, newLockupAllowance, approval.maxLockupPeriod);
+    }
+
     /// @notice Terminates a payment rail, preventing further payments after the rail's lockup period. After calling this method, the lockup period cannot be changed, and the rail's rate and fixed lockup may only be reduced.
     /// @param railId The ID of the rail to terminate.
     /// @custom:constraint Caller must be a rail client or operator.
@@ -528,6 +554,54 @@ contract Payments is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
         settleAccountLockupBeforeAndAfter(token, to, false)
     {
         _setOperatorApproval(token, operator, true, rateAllowance, lockupAllowance, maxLockupPeriod);
+        _depositWithPermit(token, to, amount, deadline, v, r, s);
+    }
+
+    /**
+     * @notice Deposits tokens using permit (EIP-2612) approval in a single transaction,
+     *         while also increasing operator approval allowances.
+     * @param token The ERC20 token address to deposit and for which the operator approval is being increased.
+     *             Note: The token must support EIP-2612 permit functionality.
+     * @param to The address whose account will be credited (must be the permit signer).
+     * @param amount The amount of tokens to deposit.
+     * @param deadline Permit deadline (timestamp).
+     * @param v,r,s Permit signature.
+     * @param operator The address of the operator whose allowances are being increased.
+     * @param rateAllowanceIncrease The amount to increase the rate allowance by.
+     * @param lockupAllowanceIncrease The amount to increase the lockup allowance by.
+     * @custom:constraint Operator must already be approved.
+     */
+    function depositWithPermitAndIncreaseOperatorApproval(
+        address token,
+        address to,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s,
+        address operator,
+        uint256 rateAllowanceIncrease,
+        uint256 lockupAllowanceIncrease
+    )
+        external
+        nonReentrant
+        validateNonZeroAddress(operator, "operator")
+        validateNonZeroAddress(to, "to")
+        settleAccountLockupBeforeAndAfter(token, to, false)
+    {
+        OperatorApproval memory approval = operatorApprovals[token][to][operator];
+
+        // Operator must already be approved
+        require(approval.isApproved, Errors.OperatorNotApproved(to, operator));
+
+        // Calculate new allowances by adding increases to current values
+        uint256 newRateAllowance = approval.rateAllowance + rateAllowanceIncrease;
+        uint256 newLockupAllowance = approval.lockupAllowance + lockupAllowanceIncrease;
+
+        // Set the increased operator approval (keeping same approval status and maxLockupPeriod)
+        _setOperatorApproval(token, operator, true, newRateAllowance, newLockupAllowance, approval.maxLockupPeriod);
+
+        // Perform the deposit with permit
         _depositWithPermit(token, to, amount, deadline, v, r, s);
     }
 
