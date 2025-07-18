@@ -800,4 +800,158 @@ contract OperatorApprovalTest is Test, BaseTestHelper {
         payments.modifyRailLockup(railId, 6, 50 ether); // Try to increase to 6 blocks, which is over the new max of 5
         vm.stopPrank();
     }
+
+    // SECTION: Increase Operator Approval Tests
+
+    function testIncreaseOperatorApproval_HappyPath() public {
+        // Setup initial approval
+        helper.setupOperatorApproval(USER1, OPERATOR, RATE_ALLOWANCE, LOCKUP_ALLOWANCE, MAX_LOCKUP_PERIOD);
+
+        // Verify initial state
+        (bool isApproved, uint256 rateAllowance, uint256 lockupAllowance,,, uint256 maxLockupPeriod) =
+            payments.operatorApprovals(address(helper.testToken()), USER1, OPERATOR);
+        assertEq(isApproved, true);
+        assertEq(rateAllowance, RATE_ALLOWANCE);
+        assertEq(lockupAllowance, LOCKUP_ALLOWANCE);
+        assertEq(maxLockupPeriod, MAX_LOCKUP_PERIOD);
+
+        // Increase allowances
+        uint256 rateIncrease = 50 ether;
+        uint256 lockupIncrease = 500 ether;
+
+        vm.startPrank(USER1);
+        payments.increaseOperatorApproval(address(helper.testToken()), OPERATOR, rateIncrease, lockupIncrease);
+        vm.stopPrank();
+
+        // Verify increased allowances
+        (isApproved, rateAllowance, lockupAllowance,,, maxLockupPeriod) =
+            payments.operatorApprovals(address(helper.testToken()), USER1, OPERATOR);
+        assertEq(isApproved, true);
+        assertEq(rateAllowance, RATE_ALLOWANCE + rateIncrease);
+        assertEq(lockupAllowance, LOCKUP_ALLOWANCE + lockupIncrease);
+        assertEq(maxLockupPeriod, MAX_LOCKUP_PERIOD); // Should remain unchanged
+    }
+
+    function testIncreaseOperatorApproval_ZeroIncrease() public {
+        // Setup initial approval
+        helper.setupOperatorApproval(USER1, OPERATOR, RATE_ALLOWANCE, LOCKUP_ALLOWANCE, MAX_LOCKUP_PERIOD);
+
+        // Increase by zero (should work but not change anything)
+        vm.startPrank(USER1);
+        payments.increaseOperatorApproval(address(helper.testToken()), OPERATOR, 0, 0);
+        vm.stopPrank();
+
+        // Verify allowances remain the same
+        (bool isApproved, uint256 rateAllowance, uint256 lockupAllowance,,, uint256 maxLockupPeriod) =
+            payments.operatorApprovals(address(helper.testToken()), USER1, OPERATOR);
+        assertEq(isApproved, true);
+        assertEq(rateAllowance, RATE_ALLOWANCE);
+        assertEq(lockupAllowance, LOCKUP_ALLOWANCE);
+        assertEq(maxLockupPeriod, MAX_LOCKUP_PERIOD);
+    }
+
+    function testIncreaseOperatorApproval_OperatorNotApproved() public {
+        // Get token address before setting up expectRevert
+        address tokenAddress = address(helper.testToken());
+
+        // Try to increase approval for non-approved operator
+        vm.startPrank(USER1);
+        vm.expectRevert(abi.encodeWithSelector(Errors.OperatorNotApproved.selector, USER1, OPERATOR));
+        payments.increaseOperatorApproval(tokenAddress, OPERATOR, 50 ether, 500 ether);
+        vm.stopPrank();
+    }
+
+    function testIncreaseOperatorApproval_ZeroOperatorAddress() public {
+        // Get token address before setting up expectRevert
+        address tokenAddress = address(helper.testToken());
+
+        // Try to increase approval for zero address operator
+        vm.startPrank(USER1);
+        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddressNotAllowed.selector, "operator"));
+        payments.increaseOperatorApproval(tokenAddress, address(0), 50 ether, 500 ether);
+        vm.stopPrank();
+    }
+
+    function testIncreaseOperatorApproval_AfterRevocation() public {
+        // Setup initial approval
+        helper.setupOperatorApproval(USER1, OPERATOR, RATE_ALLOWANCE, LOCKUP_ALLOWANCE, MAX_LOCKUP_PERIOD);
+
+        // Revoke approval
+        helper.revokeOperatorApprovalAndVerify(USER1, OPERATOR);
+
+        // Get token address before setting up expectRevert
+        address tokenAddress = address(helper.testToken());
+
+        // Try to increase revoked approval
+        vm.startPrank(USER1);
+        vm.expectRevert(abi.encodeWithSelector(Errors.OperatorNotApproved.selector, USER1, OPERATOR));
+        payments.increaseOperatorApproval(tokenAddress, OPERATOR, 50 ether, 500 ether);
+        vm.stopPrank();
+    }
+
+    function testIncreaseOperatorApproval_WithExistingUsage() public {
+        // Setup initial approval
+        helper.setupOperatorApproval(USER1, OPERATOR, RATE_ALLOWANCE, LOCKUP_ALLOWANCE, MAX_LOCKUP_PERIOD);
+
+        // Create rail and use some allowance
+        uint256 railId = helper.createRail(USER1, USER2, OPERATOR, address(0), SERVICE_FEE_RECIPIENT);
+        uint256 paymentRate = 30 ether;
+        uint256 lockupFixed = 200 ether;
+
+        vm.startPrank(OPERATOR);
+        payments.modifyRailPayment(railId, paymentRate, 0);
+        payments.modifyRailLockup(railId, 0, lockupFixed);
+        vm.stopPrank();
+
+        // Verify usage before increase
+        (, uint256 rateAllowanceBefore, uint256 lockupAllowanceBefore, uint256 rateUsage, uint256 lockupUsage,) =
+            payments.operatorApprovals(address(helper.testToken()), USER1, OPERATOR);
+        assertEq(rateUsage, paymentRate);
+        assertEq(lockupUsage, lockupFixed);
+
+        // Increase allowances
+        uint256 rateIncrease = 70 ether;
+        uint256 lockupIncrease = 800 ether;
+
+        vm.startPrank(USER1);
+        payments.increaseOperatorApproval(address(helper.testToken()), OPERATOR, rateIncrease, lockupIncrease);
+        vm.stopPrank();
+
+        // Verify allowances increased but usage remains the same
+        (, uint256 rateAllowanceAfter, uint256 lockupAllowanceAfter, uint256 rateUsageAfter, uint256 lockupUsageAfter,)
+        = payments.operatorApprovals(address(helper.testToken()), USER1, OPERATOR);
+        assertEq(rateAllowanceAfter, rateAllowanceBefore + rateIncrease);
+        assertEq(lockupAllowanceAfter, lockupAllowanceBefore + lockupIncrease);
+        assertEq(rateUsageAfter, rateUsage); // Usage should remain unchanged
+        assertEq(lockupUsageAfter, lockupUsage); // Usage should remain unchanged
+    }
+
+    function testIncreaseOperatorApproval_MultipleIncreases() public {
+        // Setup initial approval
+        helper.setupOperatorApproval(USER1, OPERATOR, RATE_ALLOWANCE, LOCKUP_ALLOWANCE, MAX_LOCKUP_PERIOD);
+
+        // First increase
+        uint256 firstRateIncrease = 25 ether;
+        uint256 firstLockupIncrease = 250 ether;
+
+        vm.startPrank(USER1);
+        payments.increaseOperatorApproval(address(helper.testToken()), OPERATOR, firstRateIncrease, firstLockupIncrease);
+        vm.stopPrank();
+
+        // Second increase
+        uint256 secondRateIncrease = 35 ether;
+        uint256 secondLockupIncrease = 350 ether;
+
+        vm.startPrank(USER1);
+        payments.increaseOperatorApproval(
+            address(helper.testToken()), OPERATOR, secondRateIncrease, secondLockupIncrease
+        );
+        vm.stopPrank();
+
+        // Verify cumulative increases
+        (, uint256 rateAllowance, uint256 lockupAllowance,,,) =
+            payments.operatorApprovals(address(helper.testToken()), USER1, OPERATOR);
+        assertEq(rateAllowance, RATE_ALLOWANCE + firstRateIncrease + secondRateIncrease);
+        assertEq(lockupAllowance, LOCKUP_ALLOWANCE + firstLockupIncrease + secondLockupIncrease);
+    }
 }
