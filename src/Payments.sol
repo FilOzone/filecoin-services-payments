@@ -373,18 +373,33 @@ contract Payments is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
         uint256 rateAllowanceIncrease,
         uint256 lockupAllowanceIncrease
     ) external nonReentrant validateNonZeroAddress(operator, "operator") {
-        OperatorApproval memory approval = operatorApprovals[token][msg.sender][operator];
+        _increaseOperatorApproval(token, operator, rateAllowanceIncrease, lockupAllowanceIncrease);
+    }
+
+    function _increaseOperatorApproval(
+        address token,
+        address operator,
+        uint256 rateAllowanceIncrease,
+        uint256 lockupAllowanceIncrease
+    ) internal {
+        OperatorApproval storage approval = operatorApprovals[token][msg.sender][operator];
 
         // Operator must already be approved
         require(approval.isApproved, Errors.OperatorNotApproved(msg.sender, operator));
 
-        // Calculate new allowances by adding increases to current values
-        uint256 newRateAllowance = approval.rateAllowance + rateAllowanceIncrease;
-        uint256 newLockupAllowance = approval.lockupAllowance + lockupAllowanceIncrease;
+        // Directly update allowances
+        approval.rateAllowance += rateAllowanceIncrease;
+        approval.lockupAllowance += lockupAllowanceIncrease;
 
-        // Use existing function to update with new totals
-        // Keep the same approval status and maxLockupPeriod
-        _setOperatorApproval(token, operator, true, newRateAllowance, newLockupAllowance, approval.maxLockupPeriod);
+        emit OperatorApprovalUpdated(
+            token,
+            msg.sender,
+            operator,
+            approval.isApproved,
+            approval.rateAllowance,
+            approval.lockupAllowance,
+            approval.maxLockupPeriod
+        );
     }
 
     /// @notice Terminates a payment rail, preventing further payments after the rail's lockup period. After calling this method, the lockup period cannot be changed, and the rail's rate and fixed lockup may only be reduced.
@@ -589,19 +604,7 @@ contract Payments is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
         validateNonZeroAddress(to, "to")
         settleAccountLockupBeforeAndAfter(token, to, false)
     {
-        OperatorApproval memory approval = operatorApprovals[token][to][operator];
-
-        // Operator must already be approved
-        require(approval.isApproved, Errors.OperatorNotApproved(to, operator));
-
-        // Calculate new allowances by adding increases to current values
-        uint256 newRateAllowance = approval.rateAllowance + rateAllowanceIncrease;
-        uint256 newLockupAllowance = approval.lockupAllowance + lockupAllowanceIncrease;
-
-        // Set the increased operator approval (keeping same approval status and maxLockupPeriod)
-        _setOperatorApproval(token, operator, true, newRateAllowance, newLockupAllowance, approval.maxLockupPeriod);
-
-        // Perform the deposit with permit
+        _increaseOperatorApproval(token, operator, rateAllowanceIncrease, lockupAllowanceIncrease);
         _depositWithPermit(token, to, amount, deadline, v, r, s);
     }
 
