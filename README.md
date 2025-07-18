@@ -747,4 +747,4 @@ Payments.modifyRailPayment(
 
 ## License
 
-Licensed under [MIT](https://github.com/FilOzone/filecoin-services-payments/blob/main/LICENSE)
+Dual-licensed under [MIT](https://github.com/filecoin-project/lotus/blob/master/LICENSE-MIT) + [Apache 2.0](https://github.com/filecoin-project/lotus/blob/master/LICENSE-APACHE)
