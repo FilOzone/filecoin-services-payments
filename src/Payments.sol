@@ -237,6 +237,11 @@ contract Payments is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
         _;
     }
 
+    modifier validatePermitRecipient(address to) {
+        require(to == msg.sender, Errors.PermitRecipientMustBeMsgSender(msg.sender, to));
+        _;
+    }
+
     modifier settleAccountLockupBeforeAndAfter(address token, address owner, bool settleFull) {
         Account storage payer = accounts[token][owner];
 
@@ -456,7 +461,13 @@ contract Payments is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external nonReentrant validateNonZeroAddress(to, "to") settleAccountLockupBeforeAndAfter(token, to, false) {
+    )
+        external
+        nonReentrant
+        validateNonZeroAddress(to, "to")
+        validatePermitRecipient(to)
+        settleAccountLockupBeforeAndAfter(token, to, false)
+    {
         _depositWithPermit(token, to, amount, deadline, v, r, s);
     }
 
@@ -525,6 +536,7 @@ contract Payments is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
         nonReentrant
         validateNonZeroAddress(operator, "operator")
         validateNonZeroAddress(to, "to")
+        validatePermitRecipient(to)
         settleAccountLockupBeforeAndAfter(token, to, false)
     {
         _setOperatorApproval(token, operator, true, rateAllowance, lockupAllowance, maxLockupPeriod);

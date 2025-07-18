@@ -50,7 +50,7 @@ contract AccountManagementTest is Test, BaseTestHelper {
     }
 
     function testDepositWithPermitExpiredPermitReverts() public {
-        helper.expectExpiredPermitToRevert(user1Sk, USER2, DEPOSIT_AMOUNT);
+        helper.expectExpiredPermitToRevert(user1Sk, USER1, DEPOSIT_AMOUNT);
     }
 
     function testDepositWithPermitZeroAmountNoEffect() public {
@@ -68,6 +68,10 @@ contract AccountManagementTest is Test, BaseTestHelper {
 
     function testDepositWithPermitInvalidPermitReverts() public {
         helper.expectInvalidPermitToRevert(user1Sk, USER1, DEPOSIT_AMOUNT);
+    }
+
+    function testDepositWithPermitToAnotherUserReverts() public {
+        helper.expectDepositWithPermitToAnotherUserToRevert(user1Sk, USER2, DEPOSIT_AMOUNT);
     }
 
     function testNativeDepositWithInsufficientNativeTokens() public {
