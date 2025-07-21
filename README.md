@@ -745,6 +745,39 @@ Payments.modifyRailPayment(
 - Unless absolutely required, clients should refrain from cutting operator allowances for ongoing transactions.
 - In the event that the rate stream cannot be initiated, operators should be prepared for this possibility and utilize one-time payments as a backup.
 
+## Contributing
+
+We welcome contributions to the payments contract! To ensure consistency and quality across the project, please follow these guidelines when contributing.
+
+### Commit Message Guidelines
+
+This project follows the [Conventional Commits specification](https://www.conventionalcommits.org/). All commit messages should be structured as follows:
+
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+**Types:**
+- `feat`: A new feature
+- `fix`: A bug fix
+- `docs`: Documentation only changes
+- `style`: Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc)
+- `refactor`: A code change that neither fixes a bug nor adds a feature
+- `test`: Adding missing tests or correcting existing tests
+- `chore`: Changes to the build process or auxiliary tools and libraries
+
+**Examples:**
+- `feat: add rail termination functionality`
+- `fix: resolve settlement calculation bug`
+- `docs: update README with new API examples`
+- `chore: update dependencies`
+
+Following these conventions helps maintain a clear project history and makes handling of releases and changelogs easier.
+
 ## License
 
 Dual-licensed under [MIT](https://github.com/filecoin-project/lotus/blob/master/LICENSE-MIT) + [Apache 2.0](https://github.com/filecoin-project/lotus/blob/master/LICENSE-APACHE)
