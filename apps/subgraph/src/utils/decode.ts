@@ -74,7 +74,7 @@ export class SetOperatorApprovalParams {
     approved: boolean,
     rateAllowance: BigInt,
     lockupAllowance: BigInt,
-    maxLockupPeriod: BigInt
+    maxLockupPeriod: BigInt,
   ) {
     this.tokenAddress = tokenAddress;
     this.operatorAddress = operatorAddress;
@@ -97,7 +97,7 @@ export class CreateRailParams {
     fromAddress: Address,
     toAddress: Address,
     arbiterAddress: Address,
-    commissionRateBps: BigInt
+    commissionRateBps: BigInt,
   ) {
     this.tokenAddress = tokenAddress;
     this.fromAddress = fromAddress;
@@ -167,9 +167,7 @@ export function decodeAbi(data: Bytes, types: AbiType[]): AbiValue[] {
 /**
  * Convenience function for setOperatorApproval
  */
-export function decodeSetOperatorApprovalCalldata(
-  data: Bytes
-): SetOperatorApprovalParams {
+export function decodeSetOperatorApprovalCalldata(data: Bytes): SetOperatorApprovalParams {
   const types: AbiType[] = [
     AbiType.ADDRESS,
     AbiType.ADDRESS,
@@ -186,7 +184,7 @@ export function decodeSetOperatorApprovalCalldata(
     results[2].boolValue,
     results[3].uint256Value,
     results[4].uint256Value,
-    results[5].uint256Value
+    results[5].uint256Value,
   );
 }
 
@@ -194,13 +192,7 @@ export function decodeSetOperatorApprovalCalldata(
  * Convenience function for setRailPaymentRate
  */
 export function decodeCreateRailCalldata(data: Bytes): CreateRailParams {
-  const types: AbiType[] = [
-    AbiType.ADDRESS,
-    AbiType.ADDRESS,
-    AbiType.ADDRESS,
-    AbiType.ADDRESS,
-    AbiType.UINT256,
-  ];
+  const types: AbiType[] = [AbiType.ADDRESS, AbiType.ADDRESS, AbiType.ADDRESS, AbiType.ADDRESS, AbiType.UINT256];
   const results = decodeAbi(data, types);
 
   return new CreateRailParams(
@@ -208,7 +200,7 @@ export function decodeCreateRailCalldata(data: Bytes): CreateRailParams {
     results[1].addressValue,
     results[2].addressValue,
     results[3].addressValue,
-    results[4].uint256Value
+    results[4].uint256Value,
   );
 }
 
@@ -226,18 +218,14 @@ function decodeStaticType(slot: Uint8Array, type: AbiType): AbiValue {
   switch (type) {
     case AbiType.ADDRESS:
       const addressBytes = slot.subarray(12, 32); // Last 20 bytes
-      return AbiValue.fromAddress(
-        Address.fromBytes(Bytes.fromUint8Array(addressBytes))
-      );
+      return AbiValue.fromAddress(Address.fromBytes(Bytes.fromUint8Array(addressBytes)));
 
     case AbiType.BOOL:
       return AbiValue.fromBool(slot[31] != 0);
 
     case AbiType.UINT256:
     case AbiType.INT256:
-      return AbiValue.fromUint256(
-        BigInt.fromUnsignedBytes(changetype<Bytes>(slot))
-      );
+      return AbiValue.fromUint256(BigInt.fromUnsignedBytes(changetype<Bytes>(slot)));
 
     default:
       throw new Error("Unsupported static type");
@@ -247,11 +235,7 @@ function decodeStaticType(slot: Uint8Array, type: AbiType): AbiValue {
 /**
  * Decode dynamic types from their data location
  */
-function decodeDynamicType(
-  data: Bytes,
-  offset: number,
-  type: AbiType
-): AbiValue {
+function decodeDynamicType(data: Bytes, offset: number, type: AbiType): AbiValue {
   switch (type) {
     case AbiType.STRING:
       return AbiValue.fromString(decodeDynamicString(data, offset));
@@ -274,11 +258,7 @@ function bytesTonumber(bytes: Uint8Array): number {
   }
 
   // Use only the last 4 bytes to avoid overflow
-  const result =
-    (Number(bytes[28]) << 24) |
-    (Number(bytes[29]) << 16) |
-    (Number(bytes[30]) << 8) |
-    Number(bytes[31]);
+  const result = (Number(bytes[28]) << 24) | (Number(bytes[29]) << 16) | (Number(bytes[30]) << 8) | Number(bytes[31]);
 
   return result;
 }
