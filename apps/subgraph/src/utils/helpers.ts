@@ -76,7 +76,7 @@ export const getTokenDetails = (address: Address): TokenDetails => {
 
     token.name = tokenNameResult.value
     token.symbol = tokenSymbolResult.value
-    token.decimals = tokenDecimalsResult.value
+    token.decimals = GraphBN.fromI32(tokenDecimalsResult.value)
 
     if (tokenNameResult.reverted) {
       token.name = 'Unknown'
@@ -166,7 +166,7 @@ export const createRail = (
   serviceFeeRecipient: Address,
   blockNumber: GraphBN
 ): Rail => {
-  const rail = new Rail(Bytes.fromBigInt(railId))
+  const rail = new Rail(Bytes.fromByteArray(Bytes.fromBigInt(railId)))
   rail.railId = railId
   rail.payer = payer.id
   rail.payee = payee.id
@@ -199,7 +199,7 @@ export const createRateChangeQueue = (
   untilEpoch: GraphBN,
   rate: GraphBN
 ): RateChangeQueue => {
-  const id = rail.id.concat(Bytes.fromBigInt(startEpoch))
+  const id = rail.id.concat(Bytes.fromByteArray(Bytes.fromBigInt(startEpoch)))
   const rateChangeQueue = new RateChangeQueue(id)
   rateChangeQueue.rail = rail.id
   rateChangeQueue.startEpoch = startEpoch
@@ -219,7 +219,7 @@ export const createSettlement = (
   operatorCommission: GraphBN,
   settledUpto: GraphBN
 ): Settlement => {
-  const id = rail.id.concat(Bytes.fromBigInt(settledUpto))
+  const id = rail.id.concat(Bytes.fromByteArray(Bytes.fromBigInt(settledUpto)))
   const settlement = new Settlement(id)
   settlement.rail = rail.id
   settlement.totalSettledAmount = totalSettledAmount

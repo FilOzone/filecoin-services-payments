@@ -487,6 +487,6 @@ export function handleRailFinalized(event: RailFinalizedEvent): void {
   rail.save()
 }
 
-function calculateOneTimePayment(operatorCommission: GraphBN, commissionRateBps: GraphBN) {
+function calculateOneTimePayment(operatorCommission: GraphBN, commissionRateBps: GraphBN): GraphBN {
   return operatorCommission.times(COMMISSION_MAX_BPS).div(commissionRateBps)
 }
