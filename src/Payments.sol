@@ -613,6 +613,7 @@ contract Payments is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
         nonReentrant
         validateNonZeroAddress(operator, "operator")
         validateNonZeroAddress(to, "to")
+        validatePermitRecipient(to)
         settleAccountLockupBeforeAndAfter(token, to, false)
     {
         _increaseOperatorApproval(token, operator, rateAllowanceIncrease, lockupAllowanceIncrease);
