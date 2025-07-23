@@ -52,6 +52,15 @@ contract PayeeFaultArbitrationBugTest is Test, BaseTestHelper {
         vm.prank(OPERATOR);
         payments.terminateRail(railId);
 
+        // Verify that railTerminated was called on the validator with correct parameters
+        assertTrue(validator.railTerminatedCalled(), "railTerminated should have been called");
+        assertEq(validator.lastTerminatedRailId(), railId, "Incorrect railId passed to validator");
+        assertEq(validator.lastTerminator(), OPERATOR, "Incorrect terminator passed to validator");
+        
+        // Get the rail to verify the endEpoch matches
+        Payments.RailView memory rail = payments.getRail(railId);
+        assertEq(validator.lastEndEpoch(), rail.endEpoch, "Incorrect endEpoch passed to validator");
+
         helper.advanceBlocks(15);
 
         vm.prank(USER1);

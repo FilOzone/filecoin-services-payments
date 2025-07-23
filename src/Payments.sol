@@ -31,6 +31,13 @@ interface IValidator {
         uint256 toEpoch,
         uint256 rate
     ) external returns (ValidationResult memory result);
+
+
+    function railTerminated(
+        uint256 railId,
+        address terminator,
+        uint256 endEpoch
+    ) external;
 }
 
 // @title Payments contract.
@@ -431,6 +438,11 @@ contract Payments is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
         rail.endEpoch = payer.lockupLastSettledAt + rail.lockupPeriod;
 
         emit RailTerminated(railId, msg.sender, rail.endEpoch);
+
+        // Notify the validator if one exists
+        if (rail.validator != address(0)) {
+            IValidator(rail.validator).railTerminated(railId, msg.sender, rail.endEpoch);
+        }
 
         // Remove the rail rate from account lockup rate but don't set rail rate to zero yet.
         // The rail rate will be used to settle the rail and so we can't zero it yet.

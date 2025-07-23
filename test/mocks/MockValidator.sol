@@ -19,6 +19,12 @@ contract MockValidator is IValidator {
     uint256 public customUpto;
     string public customNote;
 
+    // Storage for railTerminated calls
+    uint256 public lastTerminatedRailId;
+    address public lastTerminator;
+    uint256 public lastEndEpoch;
+    bool public railTerminatedCalled;
+
     constructor(ValidatorMode _mode) {
         mode = _mode;
         modificationFactor = 100; // 100% = no modification by default
@@ -84,5 +90,16 @@ contract MockValidator is IValidator {
                 note: "Malicious validator attempting to manipulate payment"
             });
         }
+    }
+
+    function railTerminated(
+        uint256 railId,
+        address terminator,
+        uint256 endEpoch
+    ) external override {
+        lastTerminatedRailId = railId;
+        lastTerminator = terminator;
+        lastEndEpoch = endEpoch;
+        railTerminatedCalled = true;
     }
 }
