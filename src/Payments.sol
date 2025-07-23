@@ -32,12 +32,7 @@ interface IValidator {
         uint256 rate
     ) external returns (ValidationResult memory result);
 
-
-    function railTerminated(
-        uint256 railId,
-        address terminator,
-        uint256 endEpoch
-    ) external;
+    function railTerminated(uint256 railId, address terminator, uint256 endEpoch) external;
 }
 
 // @title Payments contract.

@@ -92,11 +92,7 @@ contract MockValidator is IValidator {
         }
     }
 
-    function railTerminated(
-        uint256 railId,
-        address terminator,
-        uint256 endEpoch
-    ) external override {
+    function railTerminated(uint256 railId, address terminator, uint256 endEpoch) external override {
         lastTerminatedRailId = railId;
         lastTerminator = terminator;
         lastEndEpoch = endEpoch;
