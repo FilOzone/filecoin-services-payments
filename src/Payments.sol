@@ -44,6 +44,7 @@ contract Payments is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
     uint256 public constant COMMISSION_MAX_BPS = 10000;
 
     uint256 public constant NETWORK_FEE = 1300000 gwei; // equivalent to 130000 nFIL
+    address payable private constant BURN_ADDRESS = payable(0xff00000000000000000000000000000000000063);
 
     // Events
     event AccountLockupSettled(
@@ -1025,8 +1026,8 @@ contract Payments is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
     function burnAndRefundRest(uint256 _amount) internal {
         require(msg.value >= _amount, Errors.InsufficientNativeTokenForBurn(_amount, msg.value));
         // f099 burn address
-        (bool success,) = address(0xff00000000000000000000000000000000000063).call{value: _amount}("");
-        require(success, Errors.NativeTransferFailed(address(0xff00000000000000000000000000000000000063), _amount));
+        (bool success,) = BURN_ADDRESS.call{value: _amount}("");
+        require(success, Errors.NativeTransferFailed(BURN_ADDRESS, _amount));
 
         if (msg.value > _amount) {
             uint256 refund = msg.value - _amount;
