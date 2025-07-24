@@ -1,22 +1,5 @@
 # Makefile for Payment Contracts
 
-# Helper: Ensure relevant scripts are executable
-.PHONY: chmod-deploy
-chmod-deploy:
-	chmod +x ./tools/deploy.sh
-
-.PHONY : chmod-upgrade
-chmod-upgrade:
-	chmod +x ./tools/upgrade-contract.sh
-
-.PHONY: chmod-transfer
-chmod-transfer:
-	chmod +x ./tools/transfer-owner.sh
-
-.PHONY: chmod-get-owner
-chmod-get-owner:
-	chmod +x ./tools/get-owner.sh
-
 # Default target
 .PHONY: default
 default: build test
@@ -39,6 +22,23 @@ build:
 .PHONY: test
 test:
 	forge test -vv
+
+# Helper: Ensure relevant scripts are executable
+.PHONY: chmod-deploy
+chmod-deploy:
+	chmod +x ./tools/deploy.sh
+
+.PHONY : chmod-upgrade
+chmod-upgrade:
+	chmod +x ./tools/upgrade-contract.sh
+
+.PHONY: chmod-transfer
+chmod-transfer:
+	chmod +x ./tools/transfer-owner.sh
+
+.PHONY: chmod-get-owner
+chmod-get-owner:
+	chmod +x ./tools/get-owner.sh
 
 # Deployment targets
 .PHONY: deploy-calibnet
