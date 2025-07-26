@@ -1,0 +1,46 @@
+name: Check Interface Consistency
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  check_interface:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.2.3
+
+      - name: Install Dependencies
+        run: forge install
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Ensure script is executable
+        run: chmod +x tools/generate-interface.sh
+
+      - name: Check interface consistency
+        run: tools/generate-interface.sh temp/IPayments.sol
+
+      - name: Verify interface
+        run: |
+          echo "Verifying interface consistency..."
+          if ! diff -q src/interfaces/IPayments.sol temp/IPayments.sol; then
+            echo "Interface mismatch detected!"
+            echo "Please run 'make interface' to regenerate the interface."
+            exit 1
+          else
+            echo "Interface is consistent."
+          fi
+
+      - name: Clean up temporary files
+        run: rm -rf temp
