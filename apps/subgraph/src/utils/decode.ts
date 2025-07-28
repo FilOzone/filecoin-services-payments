@@ -1,4 +1,4 @@
-import { Bytes, Address, BigInt } from "@graphprotocol/graph-ts";
+import { Address, BigInt, Bytes } from "@graphprotocol/graph-ts";
 
 // Enum for supported ABI types
 export enum AbiType {

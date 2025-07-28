@@ -1,17 +1,17 @@
 /* eslint-disable no-underscore-dangle */
-import { BigInt as GraphBN, Bytes, Address } from "@graphprotocol/graph-ts";
+import { Address, Bytes, BigInt as GraphBN } from "@graphprotocol/graph-ts";
 import { erc20 } from "../../generated/Payments/erc20";
 
 import {
   Account,
-  Token,
-  UserToken,
   Operator,
   OperatorApproval,
+  PaymentsMetric,
   Rail,
   RateChangeQueue,
   Settlement,
-  PaymentsMetric,
+  Token,
+  UserToken,
 } from "../../generated/schema";
 import { DEFAULT_DECIMALS } from "./constants";
 
@@ -41,6 +41,16 @@ class UserTokenWithIsNew {
 
   constructor(userToken: UserToken, isNew: boolean) {
     this.userToken = userToken;
+    this.isNew = isNew;
+  }
+}
+
+class OperatorWithIsNew {
+  operator: Operator;
+  isNew: boolean;
+
+  constructor(operator: Operator, isNew: boolean) {
+    this.operator = operator;
     this.isNew = isNew;
   }
 }
@@ -116,7 +126,7 @@ export const createOrLoadUserToken = (account: Account, token: Token): UserToken
 };
 
 // Operator entity functions
-export const createOrLoadOperator = (address: Address): Operator => {
+export const createOrLoadOperator = (address: Address): OperatorWithIsNew => {
   let operator = Operator.load(address);
 
   if (!operator) {
@@ -125,10 +135,10 @@ export const createOrLoadOperator = (address: Address): Operator => {
     operator.totalRails = GraphBN.zero();
     operator.totalApprovals = GraphBN.zero();
     operator.save();
-    return operator;
+    return new OperatorWithIsNew(operator, true);
   }
 
-  return operator;
+  return new OperatorWithIsNew(operator, false);
 };
 
 // OperatorApproval entity functions
@@ -246,7 +256,6 @@ export const createOrLoadPayments = (): PaymentsMetric => {
   payments.totalOperators = GraphBN.zero();
   payments.totalAccounts = GraphBN.zero();
   payments.totalTokens = GraphBN.zero();
-  payments.totalVolume = GraphBN.zero();
   payments.save();
 
   return payments;

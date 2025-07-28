@@ -1,7 +1,7 @@
 {
-  "name": "@maci-protocol/subgraph",
+  "name": "@payments/subgraph",
   "version": "3.0.0",
-  "description": "A subgraph to index data from MACI protocol to serve as data layer for frontend integration",
+  "description": "A subgraph to index data from payments actor to serve as data layer for frontend integration",
   "private": false,
   "files": [
     "build",

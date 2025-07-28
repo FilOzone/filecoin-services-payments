@@ -1,29 +1,30 @@
-import { Address, BigInt as GraphBN, log, Bytes, ethereum } from "@graphprotocol/graph-ts";
+import { Bytes, BigInt as GraphBN, log } from "@graphprotocol/graph-ts";
 import {
-  RailCreated as RailCreatedEvent,
+  AccountLockupSettled as AccountLockupSettledEvent,
+  DepositRecorded as DepositRecordedEvent,
   OperatorApprovalUpdated as OperatorApprovalUpdatedEvent,
-  RailTerminated as RailTerminatedEvent,
+  Payments as PaymentsContract,
+  RailCreated as RailCreatedEvent,
+  RailFinalized as RailFinalizedEvent,
   RailLockupModified as RailLockupModifiedEvent,
+  RailOneTimePaymentProcessed as RailOneTimePaymentProcessedEvent,
   RailRateModified as RailRateModifiedEvent,
   RailSettled as RailSettledEvent,
-  DepositRecorded as DepositRecordedEvent,
+  RailTerminated as RailTerminatedEvent,
   WithdrawRecorded as WithdrawRecordedEvent,
-  AccountLockupSettled as AccountLockupSettledEvent,
-  RailOneTimePaymentProcessed as RailOneTimePaymentProcessedEvent,
-  RailFinalized as RailFinalizedEvent,
 } from "../generated/Payments/Payments";
-import { Rail, OperatorApproval, Settlement, UserToken, Token, Account, Operator } from "../generated/schema";
+import { Account, Operator, OperatorApproval, Rail, Settlement, Token, UserToken } from "../generated/schema";
+import { COMMISSION_MAX_BPS, ONE_BIG_INT } from "./utils/constants";
 import {
   createOrLoadAccountByAddress,
   createOrLoadOperator,
   createOrLoadUserToken,
   createRail,
-  createOrLoadPayments,
+  createRateChangeQueue,
   getTokenDetails,
   updateOperatorLockup,
-  createRateChangeQueue,
 } from "./utils/helpers";
-import { COMMISSION_MAX_BPS, ONE_BIG_INT } from "./utils/constants";
+import { MetricsCollectionOrchestrator } from "./utils/metrics";
 
 export function handleAccountLockupSettled(event: AccountLockupSettledEvent): void {
   const tokenAddress = event.params.token;
@@ -61,23 +62,23 @@ export function handleOperatorApprovalUpdated(event: OperatorApprovalUpdatedEven
 
   const clientAccount = Account.load(clientAddress);
 
+  let isNewOperator = false;
+  let isNewApproval = false;
+
   let operator = Operator.load(operatorAddress);
   if (!operator) {
+    isNewOperator = true;
     operator = new Operator(operatorAddress);
     operator.address = operatorAddress;
     operator.totalRails = GraphBN.zero();
     operator.totalApprovals = GraphBN.zero();
-
-    // update metrics
-    const paymentsMetrics = createOrLoadPayments();
-    paymentsMetrics.totalOperators = paymentsMetrics.totalOperators.plus(GraphBN.fromI32(1));
-    paymentsMetrics.save();
   }
 
   const id = clientAddress.concat(operator.id).concat(tokenAddress);
   let operatorApproval = OperatorApproval.load(id);
 
   if (!operatorApproval) {
+    isNewApproval = true;
     operatorApproval = new OperatorApproval(id);
     operatorApproval.client = clientAddress;
     operatorApproval.operator = operatorAddress;
@@ -100,6 +101,16 @@ export function handleOperatorApprovalUpdated(event: OperatorApprovalUpdatedEven
 
   operatorApproval.save();
   operator.save();
+
+  // update Metrics
+  MetricsCollectionOrchestrator.collectOperatorApprovalMetrics(
+    operatorAddress,
+    clientAddress,
+    isNewApproval,
+    isNewOperator,
+    event.block.timestamp,
+    event.block.number,
+  );
 }
 
 export function handleRailCreated(event: RailCreatedEvent): void {
@@ -114,16 +125,19 @@ export function handleRailCreated(event: RailCreatedEvent): void {
 
   const payerAccountWithIsNew = createOrLoadAccountByAddress(payer);
   const payerAccount = payerAccountWithIsNew.account;
+  const isNewPayer = payerAccountWithIsNew.isNew;
   const payeeAccountWithIsNew = createOrLoadAccountByAddress(payee);
   const payeeAccount = payeeAccountWithIsNew.account;
   const isNewPayee = payeeAccountWithIsNew.isNew;
-  const operator = createOrLoadOperator(operatorAddress);
+  const operatorWithIsNew = createOrLoadOperator(operatorAddress);
+  const operator = operatorWithIsNew.operator;
+  const isNewOperator = operatorWithIsNew.isNew;
 
   payerAccount.totalRails = payerAccount.totalRails.plus(GraphBN.fromI32(1));
   payeeAccount.totalRails = payeeAccount.totalRails.plus(GraphBN.fromI32(1));
   operator.totalRails = operator.totalRails.plus(GraphBN.fromI32(1));
 
-  createRail(
+  const rail = createRail(
     railId,
     payerAccount,
     payeeAccount,
@@ -140,13 +154,15 @@ export function handleRailCreated(event: RailCreatedEvent): void {
   payeeAccount.save();
   operator.save();
 
-  // update metrics
-  const paymentsMetrics = createOrLoadPayments();
-  paymentsMetrics.totalRails = paymentsMetrics.totalRails.plus(GraphBN.fromI32(1));
-  if (isNewPayee) {
-    paymentsMetrics.totalAccounts = paymentsMetrics.totalAccounts.plus(GraphBN.fromI32(1));
-  }
-  paymentsMetrics.save();
+  // Collect Metrics
+  MetricsCollectionOrchestrator.collectRailCreationMetrics(
+    rail,
+    isNewPayer,
+    isNewPayee,
+    isNewOperator,
+    event.block.timestamp,
+    event.block.number,
+  );
 }
 
 export function handleRailTerminated(event: RailTerminatedEvent): void {
@@ -169,6 +185,15 @@ export function handleRailTerminated(event: RailTerminatedEvent): void {
   }
 
   rail.save();
+
+  // collect rail state change metrics
+  MetricsCollectionOrchestrator.collectRailStateChangeMetrics(
+    rail,
+    rail.state,
+    "TERMINATED",
+    event.block.timestamp,
+    event.block.number,
+  );
 }
 
 export function handleRailLockupModified(event: RailLockupModifiedEvent): void {
@@ -224,8 +249,17 @@ export function handleRailRateModified(event: RailRateModifiedEvent): void {
   }
 
   rail.paymentRate = event.params.newRate;
-  if (oldRate.equals(GraphBN.zero()) && newRate.gt(GraphBN.zero())) {
+  if (oldRate.equals(GraphBN.zero()) && newRate.gt(GraphBN.zero()) && rail.state !== "Active") {
     rail.state = "ACTIVE";
+
+    // Collect rail State change metrics
+    MetricsCollectionOrchestrator.collectRailStateChangeMetrics(
+      rail,
+      "ZERORATE",
+      "ACTIVE",
+      event.block.timestamp,
+      event.block.number,
+    );
   }
   rail.totalRateChanges = rail.totalRateChanges.plus(GraphBN.fromI32(1));
 
@@ -286,6 +320,18 @@ export function handleRailRateModified(event: RailRateModifiedEvent): void {
 
 export function handleRailSettled(event: RailSettledEvent): void {
   const railId = event.params.railId;
+  const totalSettledAmount = event.params.totalSettledAmount;
+  const totalNetPayeeAmount = event.params.totalNetPayeeAmount;
+  const operatorCommission = event.params.operatorCommission;
+  const timestamp = event.block.timestamp;
+  const blockNumber = event.block.number;
+
+  const paymentsContractAddress = event.address;
+
+  const paymentsContract = PaymentsContract.bind(paymentsContractAddress);
+
+  const filBurnedResult = paymentsContract.try_NETWORK_FEE();
+
   const rail = Rail.load(Bytes.fromHexString(railId.toHexString()));
 
   if (!rail) {
@@ -294,9 +340,9 @@ export function handleRailSettled(event: RailSettledEvent): void {
   }
 
   // Update rail aggregate data
-  rail.totalSettledAmount = rail.totalSettledAmount.plus(event.params.totalSettledAmount);
-  rail.totalNetPayeeAmount = rail.totalNetPayeeAmount.plus(event.params.totalNetPayeeAmount);
-  rail.totalCommission = rail.totalCommission.plus(event.params.operatorCommission);
+  rail.totalSettledAmount = rail.totalSettledAmount.plus(totalSettledAmount);
+  rail.totalNetPayeeAmount = rail.totalNetPayeeAmount.plus(totalNetPayeeAmount);
+  rail.totalCommission = rail.totalCommission.plus(operatorCommission);
   rail.totalSettlements = rail.totalSettlements.plus(GraphBN.fromI32(1));
   rail.settledUpto = event.params.settledUpTo;
 
@@ -307,9 +353,9 @@ export function handleRailSettled(event: RailSettledEvent): void {
   const settlement = new Settlement(settlementId);
 
   settlement.rail = rail.id;
-  settlement.totalSettledAmount = event.params.totalSettledAmount;
-  settlement.totalNetPayeeAmount = event.params.totalNetPayeeAmount;
-  settlement.operatorCommission = event.params.operatorCommission;
+  settlement.totalSettledAmount = totalSettledAmount;
+  settlement.totalNetPayeeAmount = totalNetPayeeAmount;
+  settlement.operatorCommission = operatorCommission;
   settlement.settledUpto = event.params.settledUpTo;
 
   // update funds for payer and payee
@@ -317,21 +363,33 @@ export function handleRailSettled(event: RailSettledEvent): void {
   const payeeToken = UserToken.load(rail.payee.concat(rail.token));
   const token = Token.load(rail.token);
   if (token) {
-    token.userFunds = token.userFunds.minus(event.params.operatorCommission);
+    token.userFunds = token.userFunds.minus(operatorCommission);
+    token.totalSettledAmount = token.totalSettledAmount.plus(totalSettledAmount);
     token.save();
   }
 
   if (payerToken) {
-    payerToken.funds = payerToken.funds.minus(event.params.totalSettledAmount);
+    payerToken.funds = payerToken.funds.minus(totalSettledAmount);
     payerToken.save();
   }
 
   if (payeeToken) {
-    payeeToken.funds = payeeToken.funds.plus(event.params.totalNetPayeeAmount);
+    payeeToken.funds = payeeToken.funds.plus(totalNetPayeeAmount);
     payeeToken.save();
   }
 
   settlement.save();
+
+  // collect metrics
+  MetricsCollectionOrchestrator.collectSettlementMetrics(
+    rail,
+    totalSettledAmount,
+    totalNetPayeeAmount,
+    operatorCommission,
+    filBurnedResult.reverted ? GraphBN.zero() : filBurnedResult.value,
+    timestamp,
+    blockNumber,
+  );
 }
 
 export function handleDepositRecorded(event: DepositRecordedEvent): void {
@@ -352,6 +410,7 @@ export function handleDepositRecorded(event: DepositRecordedEvent): void {
   const isNewUserToken = userTokenWithIsNew.isNew;
 
   token.userFunds = token.userFunds.plus(amount);
+  token.totalDeposits = token.totalDeposits.plus(amount);
   token.save();
 
   if (isNewUserToken) {
@@ -362,15 +421,16 @@ export function handleDepositRecorded(event: DepositRecordedEvent): void {
   userToken.funds = userToken.funds.plus(amount);
   userToken.save();
 
-  // update metrics
-  const paymentsMetrics = createOrLoadPayments();
-  if (isNewToken) {
-    paymentsMetrics.totalTokens = paymentsMetrics.totalTokens.plus(GraphBN.fromI32(1));
-  }
-  if (isNewAccount) {
-    paymentsMetrics.totalAccounts = paymentsMetrics.totalAccounts.plus(GraphBN.fromI32(1));
-  }
-  paymentsMetrics.save();
+  // Collect Metrics
+  MetricsCollectionOrchestrator.collectTokenActivityMetrics(
+    tokenAddress,
+    accountAddress,
+    amount,
+    true,
+    isNewAccount,
+    event.block.timestamp,
+    event.block.number,
+  );
 }
 
 export function handleWithdrawRecorded(event: WithdrawRecordedEvent): void {
@@ -388,9 +448,21 @@ export function handleWithdrawRecorded(event: WithdrawRecordedEvent): void {
   const token = Token.load(userToken.token);
   if (token) {
     token.userFunds = token.userFunds.minus(amount);
+    token.totalWithdrawals = token.totalWithdrawals.plus(amount);
     token.save();
   }
   userToken.save();
+
+  // collect Metrics
+  MetricsCollectionOrchestrator.collectTokenActivityMetrics(
+    tokenAddress,
+    accountAddress,
+    amount,
+    false,
+    false,
+    event.block.timestamp,
+    event.block.number,
+  );
 }
 
 export function handleRailOneTimePaymentProcessed(event: RailOneTimePaymentProcessedEvent): void {
@@ -463,6 +535,15 @@ export function handleRailFinalized(event: RailFinalizedEvent): void {
 
   rail.state = "FINALIZED";
   rail.save();
+
+  // Collect rail state change metrics
+  MetricsCollectionOrchestrator.collectRailStateChangeMetrics(
+    rail,
+    rail.state,
+    "FINALIZED",
+    event.block.timestamp,
+    event.block.number,
+  );
 }
 
 function calculateOneTimePayment(operatorCommission: GraphBN, commissionRateBps: GraphBN): GraphBN {
