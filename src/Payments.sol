@@ -1571,7 +1571,7 @@ contract Payments is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
         uint256[] storage allRailIds = isPayer ? payerRails[token][addr] : payeeRails[token][addr];
         uint256 railsLength = allRailIds.length;
 
-        RailInfo[] memory tempResults = new RailInfo[](railsLength);
+        RailInfo[] memory results = new RailInfo[](railsLength);
         uint256 resultCount = 0;
 
         for (uint256 i = 0; i < railsLength; i++) {
@@ -1582,22 +1582,16 @@ contract Payments is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
             if (rail.from == address(0)) continue;
 
             // Add rail to our temporary array
-            tempResults[resultCount] =
+            results[resultCount] =
                 RailInfo({railId: railId, isTerminated: rail.endEpoch > 0, endEpoch: rail.endEpoch});
             resultCount++;
         }
 
-        // Create correctly sized final result array
-        RailInfo[] memory result = new RailInfo[](resultCount);
-
-        // Only copy if we have results (avoid unnecessary operations)
-        if (resultCount > 0) {
-            for (uint256 i = 0; i < resultCount; i++) {
-                result[i] = tempResults[i];
-            }
+        assembly ("memory-safe") {
+            mstore(results, resultCount)
         }
 
-        return result;
+        return results;
     }
 
     /// @notice Number of pending rate-change entries for a rail
