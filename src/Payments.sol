@@ -1581,7 +1581,7 @@ contract Payments is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
             // Skip non-existent rails
             if (rail.from == address(0)) continue;
 
-            // Add rail to our temporary array
+            // Add rail info to results
             results[resultCount] =
                 RailInfo({railId: railId, isTerminated: rail.endEpoch > 0, endEpoch: rail.endEpoch});
             resultCount++;
