@@ -1587,6 +1587,7 @@ contract Payments is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
             resultCount++;
         }
 
+        // Truncate
         assembly ("memory-safe") {
             mstore(results, resultCount)
         }
