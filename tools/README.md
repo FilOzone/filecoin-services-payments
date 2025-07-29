@@ -45,6 +45,15 @@ This script displays the current owner of the Payments contract. Requires `PAYME
 #### transfer-owner.sh
 This script transfers ownership of the Payments contract to a new owner. Requires `PAYMENTS_CONTRACT_ADDRESS` and `NEW_OWNER` environment variables.
 
+### Interface Generation
+
+#### generate-interface.sh
+This script generates the `IPayments` interface from the compiled ABI using abi-to-sol at path `src/interfaces/IPayments.sol`
+
+```bash
+./tools/generate-interface.sh
+```
+
 ### Environment Variables
 
 To use these scripts, set the following environment variables:
@@ -72,6 +81,9 @@ make upgrade-mainnet                # Upgrade on Mainnet
 # Ownership
 make transfer-owner     # Transfer ownership
 make get-owner          # Display current owner
+
+# Interface
+make interface          # Generate or update IPayments interface
 ```
 
 ---
@@ -126,6 +138,13 @@ export NEW_OWNER="0x..."
 ./tools/transfer-owner.sh
 ```
 
+#### Genarate Interface
+
+```bash
+# Stores interface at src/interfaces/IPayments.sol
+./tools/generate-interface.sh
+```
+
 ### Example Usage
 
 ```bash
@@ -148,4 +167,7 @@ make upgrade-calibnet
 export PAYMENTS_CONTRACT_ADDRESS="0x..."
 export NEW_OWNER="0x..."
 make transfer-owner
+
+# Generate IPayments interface
+make interface
 ``` 
