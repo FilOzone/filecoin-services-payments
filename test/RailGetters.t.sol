@@ -149,6 +149,26 @@ contract PayeeRailsTest is Test, BaseTestHelper {
         payments.terminateRail(rail3Id);
     }
 
+    function testGetManyRails() public {
+        for (uint256 i = 0; i < 300; i++) {
+            helper.setupRailWithParameters(
+                USER1, // from
+                OPERATOR, // to (payee)
+                OPERATOR, // operator
+                1 wei, // rate
+                10, // lockupPeriod
+                0, // No fixed lockup
+                address(0), // No validator
+                SERVICE_FEE_RECIPIENT // operator commision receiver
+            );
+        }
+        Payments.RailInfo[] memory rails = payments.getRailsForPayeeAndToken(OPERATOR, address(token));
+        assertEq(rails.length, 300);
+        for (uint256 i = 0; i < 300; i++) {
+            assertFalse(rails[i].isTerminated);
+        }
+    }
+
     function testGetRailsForPayeeAndToken() public view {
         // Test getting all rails for USER2 and token1 (should include terminated)
         Payments.RailInfo[] memory rails = payments.getRailsForPayeeAndToken(USER2, address(token));
