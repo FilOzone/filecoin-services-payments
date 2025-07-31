@@ -20,9 +20,24 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: nightly
+          cache: true
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.foundry/cache
+            ~/.foundry/artifacts
+            out
+            cache
+          key: ${{ runner.os }}-foundry-${{ hashFiles('**/foundry.toml') }}-${{ hashFiles('**/remappings.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-foundry-
 
       - name: Run Forge coverage
-        run: forge coverage --report lcov --ir-minimum
+        run: forge coverage --report lcov --ir-minimum --skip test --skip script
+        env:
+          FOUNDRY_PROFILE: ci
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
