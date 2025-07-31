@@ -3,7 +3,6 @@ pragma solidity ^0.8.27;
 
 import {Test} from "forge-std/Test.sol";
 import {Payments} from "../../src/Payments.sol";
-import {ERC1967Proxy} from "../../src/ERC1967Proxy.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {BaseTestHelper} from "./BaseTestHelper.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -23,10 +22,7 @@ contract PaymentsTestHelpers is Test, BaseTestHelper {
     // Standard test environment setup with common addresses and token
     function setupStandardTestEnvironment() public {
         vm.startPrank(OWNER);
-        Payments paymentsImplementation = new Payments();
-        ERC1967Proxy proxy =
-            new ERC1967Proxy(address(paymentsImplementation), abi.encodeWithSelector(Payments.initialize.selector));
-        payments = Payments(address(proxy));
+        payments = new Payments();
         vm.stopPrank();
 
         // Setup test token and assign to common users
@@ -42,17 +38,6 @@ contract PaymentsTestHelpers is Test, BaseTestHelper {
         vm.deal(USER2, INITIAL_BALANCE);
 
         testToken = setupTestToken("Test Token", "TEST", users, INITIAL_BALANCE, address(payments));
-    }
-
-    function deployPaymentsSystem(address owner) private returns (Payments) {
-        vm.startPrank(owner);
-        Payments paymentsImplementation = new Payments();
-        ERC1967Proxy proxy =
-            new ERC1967Proxy(address(paymentsImplementation), abi.encodeWithSelector(Payments.initialize.selector));
-        Payments paymentsInstance = Payments(address(proxy));
-        vm.stopPrank();
-
-        return paymentsInstance;
     }
 
     function setupTestToken(

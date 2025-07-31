@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 pragma solidity ^0.8.27;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "./RateChangeQueue.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
+
 import "./Errors.sol";
+import "./RateChangeQueue.sol";
 
 interface IValidator {
     struct ValidationResult {
@@ -36,7 +35,7 @@ interface IValidator {
 }
 
 // @title Payments contract.
-contract Payments is Initializable, UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
+contract Payments is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using RateChangeQueue for RateChangeQueue.Queue;
 
@@ -187,18 +186,9 @@ contract Payments is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
-    }
-
-    function initialize() public initializer {
-        __Ownable_init(msg.sender);
-        __UUPSUpgradeable_init();
-        __ReentrancyGuard_init();
+    constructor() Ownable(msg.sender) ReentrancyGuard() {
         _nextRailId = 1;
     }
-
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     modifier validateRailActive(uint256 railId) {
         require(rails[railId].from != address(0), Errors.RailInactiveOrSettled(railId));
