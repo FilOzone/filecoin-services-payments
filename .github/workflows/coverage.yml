@@ -35,7 +35,7 @@ jobs:
             ${{ runner.os }}-foundry-
 
       - name: Run Forge coverage
-        run: forge coverage --report lcov --ir-minimum --skip test --skip script
+        run: forge coverage --report lcov --ir-minimum
         env:
           FOUNDRY_PROFILE: ci
 
