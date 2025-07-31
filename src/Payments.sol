@@ -185,7 +185,6 @@ contract Payments is Ownable, ReentrancyGuard {
         string note;
     }
 
-    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() Ownable(msg.sender) ReentrancyGuard() {
         _nextRailId = 1;
     }

@@ -37,33 +37,20 @@ ADDR=$(cast wallet address --keystore "$KEYSTORE" --password "$PASSWORD")
 echo "Deploying Payments from address $ADDR to chain $CHAIN_ID"
 NONCE="$(cast nonce --rpc-url "$RPC_URL" "$ADDR")"
 
-# Use IMPLEMENTATION_PATH if set, otherwise default
-if [ -z "${IMPLEMENTATION_PATH:-}" ]; then
-  IMPLEMENTATION_PATH="src/Payments.sol:Payments"
+# Use PAYMENTS_PATH if set, otherwise default
+if [ -z "${PAYMENTS_PATH:-}" ]; then
+  PAYMENTS_PATH="src/Payments.sol:Payments"
 fi
 
-echo "Deploying Payments implementation ($IMPLEMENTATION_PATH)"
-PAYMENTS_IMPLEMENTATION_ADDRESS=$(forge create --rpc-url "$RPC_URL" --keystore "$KEYSTORE" --password "$PASSWORD" --broadcast --nonce $NONCE --chain-id $CHAIN_ID $IMPLEMENTATION_PATH | grep "Deployed to" | awk '{print $3}')
-if [ -z "$PAYMENTS_IMPLEMENTATION_ADDRESS" ]; then
+echo "Deploying Payments implementation ($PAYMENTS_PATH)"
+export PAYMENTS_CONTRACT_ADDRESS=$(forge create --rpc-url "$RPC_URL" --keystore "$KEYSTORE" --password "$PASSWORD" --broadcast --nonce $NONCE --chain-id $CHAIN_ID $PAYMENTS_PATH | grep "Deployed to" | awk '{print $3}')
+if [ -z "$PAYMENTS_CONTRACT_ADDRESS" ]; then
     echo "Error: Failed to extract Payments implementation contract address"
     exit 1
 fi
-echo "Implementation Address: $PAYMENTS_IMPLEMENTATION_ADDRESS"
-
-NONCE=$(expr $NONCE + 1)
-
-echo "Deploying Payments Contract (proxy)"
-INIT_DATA=$(cast calldata "initialize()")
-PAYMENTS_CONTRACT_ADDRESS=$(forge create --rpc-url "$RPC_URL" --keystore "$KEYSTORE" --password "$PASSWORD" --broadcast --nonce $NONCE --chain-id $CHAIN_ID src/ERC1967Proxy.sol:PaymentsERC1967Proxy --constructor-args $PAYMENTS_IMPLEMENTATION_ADDRESS $INIT_DATA | grep "Deployed to" | awk '{print $3}')
-if [ -z "$PAYMENTS_CONTRACT_ADDRESS" ]; then
-    echo "Error: Failed to extract Payments contract address"
-    exit 1
-fi
-echo "Payments Contract Address: $PAYMENTS_CONTRACT_ADDRESS"
+echo "Payments Address: $PAYMENTS_CONTRACT_ADDRESS"
 
 echo ""
 echo "=== DEPLOYMENT SUMMARY ==="
-echo "Implementation Address: $PAYMENTS_IMPLEMENTATION_ADDRESS"
 echo "Payments Contract Address: $PAYMENTS_CONTRACT_ADDRESS"
 echo "=========================="
-echo "Use the Payments Contract Address ($PAYMENTS_CONTRACT_ADDRESS) for all interactions with the contract." 

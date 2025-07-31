@@ -28,10 +28,6 @@ test:
 chmod-deploy:
 	chmod +x ./tools/deploy.sh
 
-.PHONY : chmod-upgrade
-chmod-upgrade:
-	chmod +x ./tools/upgrade-contract.sh
-
 .PHONY: chmod-transfer
 chmod-transfer:
 	chmod +x ./tools/transfer-owner.sh
@@ -52,19 +48,6 @@ deploy-devnet: chmod-deploy
 .PHONY: deploy-mainnet
 deploy-mainnet: chmod-deploy
 	./tools/deploy.sh 314
-
-# Upgrade targets
-.PHONY: upgrade-calibnet
-upgrade-calibnet: chmod-upgrade
-	./tools/upgrade-contract.sh 314159
-
-.PHONY: upgrade-devnet
-upgrade-devnet: chmod-upgrade
-	./tools/upgrade-contract.sh 31415926
-
-.PHONY: upgrade-mainnet
-upgrade-mainnet: chmod-upgrade
-	./tools/upgrade-contract.sh 314
 
 # Ownership management targets
 .PHONY: transfer-owner
