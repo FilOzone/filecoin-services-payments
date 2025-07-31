@@ -55,6 +55,7 @@ type Operator @entity(immutable: false) {
   totalRails: BigInt!
   totalCommission: BigInt!
   totalApprovals: BigInt!
+  Volume: BigInt!
 
   rails: [Rail!]! @derivedFrom(field: "operator")
   operatorApprovals: [OperatorApproval!]! @derivedFrom(field: "operator")
@@ -141,11 +142,11 @@ type DailyMetric @entity(immutable: false) {
   timestamp: BigInt!
   date: String! # YYYY-MM-DD format for easier querying
   # Volume metrics
-  dailyFilBurned: BigInt!
+  filBurned: BigInt!
 
   # Rail metrics
   railsCreated: BigInt!
-  railsSettled: BigInt!
+  totalRailSettlements: BigInt!
   railsTerminated: BigInt!
   railsFinalized: BigInt!
   activeRailsCount: BigInt!
@@ -155,10 +156,6 @@ type DailyMetric @entity(immutable: false) {
   uniquePayees: BigInt!
   uniqueOperators: BigInt!
   newAccounts: BigInt!
-
-  # Cumulative metrics (running totals)
-  cumulativeFilBurned: BigInt!
-  cumulativeRails: BigInt!
 }
 
 type WeeklyMetric @entity(immutable: false) {
@@ -166,30 +163,33 @@ type WeeklyMetric @entity(immutable: false) {
   timestamp: BigInt!
   week: BigInt! # week number
   # Volume metrics
-  FilBurned: BigInt!
+  filBurned: BigInt!
 
-  # Activity metrics
+  # Rail metrics
   railsCreated: BigInt!
-  railsSettled: BigInt!
-  settlementsCount: BigInt!
-  rateChanges: BigInt!
-
-  # Active counts at week end
+  totalRailSettlements: BigInt!
+  railsTerminated: BigInt!
+  railsFinalized: BigInt!
   activeRailsCount: BigInt!
-  uniqueActiveUsers: BigInt!
+
+  # User metrics
+  uniquePayers: BigInt!
+  uniquePayees: BigInt!
+  uniqueOperators: BigInt!
+  newAccounts: BigInt!
 }
 
-type TokenMetric @entity(immutable: false) {
+type DailyTokenMetric @entity(immutable: false) {
   id: Bytes! # token address + timestamp
   token: Token!
   timestamp: BigInt!
   date: String! # YYYY-MM-DD format
   # Token-specific volume
-  dailyVolume: BigInt!
-  dailyDeposit: BigInt!
-  dailyWithdrawal: BigInt!
-  dailySettledAmount: BigInt!
-  dailyCommissionPaid: BigInt!
+  volume: BigInt!
+  deposit: BigInt!
+  withdrawal: BigInt!
+  settledAmount: BigInt!
+  commissionPaid: BigInt!
 
   # Token utilization
   activeRailsCount: BigInt!
@@ -197,15 +197,15 @@ type TokenMetric @entity(immutable: false) {
   totalLocked: BigInt!
 }
 
-type OperatorMetric @entity(immutable: false) {
+type DailyOperatorMetric @entity(immutable: false) {
   id: Bytes! # operator address + timestamp
   operator: Operator!
   timestamp: BigInt!
   date: String! # YYYY-MM-DD format
   # Performance metrics
-  dailyVolume: BigInt!
-  dailySettledAmount: BigInt!
-  dailyCommissionEarned: BigInt!
+  volume: BigInt!
+  settledAmount: BigInt!
+  commissionEarned: BigInt!
 
   # Rail management
   railsCreated: BigInt!

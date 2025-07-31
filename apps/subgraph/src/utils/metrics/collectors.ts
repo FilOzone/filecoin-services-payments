@@ -69,6 +69,16 @@ export class RailCreationCollector extends BaseMetricsCollector {
 
     weeklyMetric.railsCreated = weeklyMetric.railsCreated.plus(ONE_BIG_INT);
 
+    if (this.isNewPayer || this.isNewPayee) {
+      const newAccountsCount = (this.isNewPayer ? 1 : 0) + (this.isNewPayee ? 1 : 0);
+      weeklyMetric.newAccounts = weeklyMetric.newAccounts.plus(GraphBN.fromI32(newAccountsCount));
+    }
+
+    // Update unique counts (simplified - in production you'd track sets)
+    weeklyMetric.uniquePayers = weeklyMetric.uniquePayers.plus(this.isNewPayer ? ONE_BIG_INT : ZERO_BIG_INT);
+    weeklyMetric.uniquePayees = weeklyMetric.uniquePayees.plus(this.isNewPayee ? ONE_BIG_INT : ZERO_BIG_INT);
+    weeklyMetric.uniqueOperators = weeklyMetric.uniqueOperators.plus(this.isNewOperator ? ONE_BIG_INT : ZERO_BIG_INT);
+
     weeklyMetric.save();
   }
 
@@ -152,13 +162,14 @@ export class SettlementCollector extends BaseMetricsCollector {
   private updateVolumeMetrics(): void {
     // Daily metrics
     const dailyMetric = MetricsEntityManager.loadOrCreateDailyMetric(this.timestamp);
-    dailyMetric.railsSettled = dailyMetric.railsSettled.plus(ONE_BIG_INT);
+    dailyMetric.totalRailSettlements = dailyMetric.totalRailSettlements.plus(ONE_BIG_INT);
+    dailyMetric.filBurned = dailyMetric.filBurned.plus(this.filBurned);
     dailyMetric.save();
 
     // Weekly metrics
     const weeklyMetric = MetricsEntityManager.loadOrCreateWeeklyMetric(this.timestamp);
-    weeklyMetric.railsSettled = weeklyMetric.railsSettled.plus(ONE_BIG_INT);
-    weeklyMetric.settlementsCount = weeklyMetric.settlementsCount.plus(ONE_BIG_INT);
+    weeklyMetric.totalRailSettlements = weeklyMetric.totalRailSettlements.plus(ONE_BIG_INT);
+    weeklyMetric.filBurned = weeklyMetric.filBurned.plus(this.filBurned);
     weeklyMetric.save();
   }
 
@@ -168,9 +179,9 @@ export class SettlementCollector extends BaseMetricsCollector {
       this.timestamp,
     );
 
-    operatorMetric.dailyVolume = operatorMetric.dailyVolume.plus(this.totalSettledAmount);
-    operatorMetric.dailySettledAmount = operatorMetric.dailySettledAmount.plus(this.totalNetPayeeAmount);
-    operatorMetric.dailyCommissionEarned = operatorMetric.dailyCommissionEarned.plus(this.operatorCommission);
+    operatorMetric.volume = operatorMetric.volume.plus(this.totalSettledAmount);
+    operatorMetric.settledAmount = operatorMetric.settledAmount.plus(this.totalNetPayeeAmount);
+    operatorMetric.commissionEarned = operatorMetric.commissionEarned.plus(this.operatorCommission);
     operatorMetric.settlementsProcessed = operatorMetric.settlementsProcessed.plus(ONE_BIG_INT);
 
     operatorMetric.save();
@@ -182,9 +193,9 @@ export class SettlementCollector extends BaseMetricsCollector {
       this.timestamp,
     );
 
-    tokenMetric.dailyVolume = tokenMetric.dailyVolume.plus(this.totalSettledAmount);
-    tokenMetric.dailySettledAmount = tokenMetric.dailySettledAmount.plus(this.totalNetPayeeAmount);
-    tokenMetric.dailyCommissionPaid = tokenMetric.dailyCommissionPaid.plus(this.operatorCommission);
+    tokenMetric.volume = tokenMetric.volume.plus(this.totalSettledAmount);
+    tokenMetric.settledAmount = tokenMetric.settledAmount.plus(this.totalNetPayeeAmount);
+    tokenMetric.commissionPaid = tokenMetric.commissionPaid.plus(this.operatorCommission);
 
     tokenMetric.save();
   }
@@ -213,22 +224,27 @@ export class RailStateChangeCollector extends BaseMetricsCollector {
 
   collect(): void {
     if (this.previousState === this.newState) return;
-    this.updateDailyStateMetrics();
+    this.updateDailyAndWeeklyStateMetrics();
     this.updateNetworkStateMetrics();
   }
 
-  private updateDailyStateMetrics(): void {
+  private updateDailyAndWeeklyStateMetrics(): void {
     const dailyMetric = MetricsEntityManager.loadOrCreateDailyMetric(this.timestamp);
+    const weeklyMetric = MetricsEntityManager.loadOrCreateWeeklyMetric(this.timestamp);
 
     if (this.newState === "TERMINATED") {
       dailyMetric.railsTerminated = dailyMetric.railsTerminated.plus(ONE_BIG_INT);
+      weeklyMetric.railsTerminated = weeklyMetric.railsTerminated.plus(ONE_BIG_INT);
     } else if (this.newState === "FINALIZED") {
       dailyMetric.railsFinalized = dailyMetric.railsFinalized.plus(ONE_BIG_INT);
+      weeklyMetric.railsFinalized = weeklyMetric.railsFinalized.plus(ONE_BIG_INT);
     } else if (this.newState === "ACTIVE") {
       dailyMetric.activeRailsCount = dailyMetric.activeRailsCount.plus(ONE_BIG_INT);
+      weeklyMetric.activeRailsCount = weeklyMetric.activeRailsCount.plus(ONE_BIG_INT);
     }
 
     dailyMetric.save();
+    weeklyMetric.save();
   }
 
   private updateNetworkStateMetrics(): void {
@@ -258,6 +274,7 @@ export class TokenActivityCollector extends BaseMetricsCollector {
   private amount: GraphBN;
   private isDeposit: boolean;
   private isNewAccount: boolean;
+  private isNewToken: boolean;
 
   constructor(
     tokenAddress: Address,
@@ -265,6 +282,7 @@ export class TokenActivityCollector extends BaseMetricsCollector {
     amount: GraphBN,
     isDeposit: boolean,
     isNewAccount: boolean,
+    isNewToken: boolean,
     timestamp: GraphBN,
     blockNumber: GraphBN,
   ) {
@@ -274,6 +292,7 @@ export class TokenActivityCollector extends BaseMetricsCollector {
     this.amount = amount;
     this.isDeposit = isDeposit;
     this.isNewAccount = isNewAccount;
+    this.isNewToken = isNewToken;
   }
 
   collect(): void {
@@ -283,12 +302,12 @@ export class TokenActivityCollector extends BaseMetricsCollector {
 
   private updateTokenMetrics(): void {
     const tokenMetric = MetricsEntityManager.loadOrCreateTokenMetric(this.tokenAddress, this.timestamp);
-    tokenMetric.dailyVolume = tokenMetric.dailyVolume.plus(this.amount);
+    tokenMetric.volume = tokenMetric.volume.plus(this.amount);
 
     if (this.isDeposit) {
-      tokenMetric.dailyDeposit = tokenMetric.dailyDeposit.plus(this.amount);
+      tokenMetric.deposit = tokenMetric.deposit.plus(this.amount);
     } else {
-      tokenMetric.dailyWithdrawal = tokenMetric.dailyWithdrawal.plus(this.amount);
+      tokenMetric.withdrawal = tokenMetric.withdrawal.plus(this.amount);
     }
 
     if (this.isNewAccount) {
@@ -299,35 +318,16 @@ export class TokenActivityCollector extends BaseMetricsCollector {
   }
 
   private updateNetworkMetrics(): void {
+    const networkMetric = MetricsEntityManager.loadOrCreatePaymentsMetric();
     if (this.isNewAccount) {
-      const networkMetric = MetricsEntityManager.loadOrCreatePaymentsMetric();
       networkMetric.totalAccounts = networkMetric.totalAccounts.plus(ONE_BIG_INT);
-      networkMetric.save();
     }
-  }
-}
 
-// Rate Change Collector
-export class RateChangeCollector extends BaseMetricsCollector {
-  private rail: Rail;
-  private oldRate: GraphBN;
-  private newRate: GraphBN;
+    if (this.isNewToken) {
+      networkMetric.totalTokens = networkMetric.totalTokens.plus(ONE_BIG_INT);
+    }
 
-  constructor(rail: Rail, oldRate: GraphBN, newRate: GraphBN, timestamp: GraphBN, blockNumber: GraphBN) {
-    super(timestamp, blockNumber);
-    this.rail = rail;
-    this.oldRate = oldRate;
-    this.newRate = newRate;
-  }
-
-  collect(): void {
-    this.updateWeeklyMetrics();
-  }
-
-  private updateWeeklyMetrics(): void {
-    const weeklyMetric = MetricsEntityManager.loadOrCreateWeeklyMetric(this.timestamp);
-    weeklyMetric.rateChanges = weeklyMetric.rateChanges.plus(ONE_BIG_INT);
-    weeklyMetric.save();
+    networkMetric.save();
   }
 }
 
@@ -428,6 +428,7 @@ export class MetricsCollectionOrchestrator {
     amount: GraphBN,
     isDeposit: boolean,
     isNewAccount: boolean,
+    isNewToken: boolean,
     timestamp: GraphBN,
     blockNumber: GraphBN,
   ): void {
@@ -437,20 +438,10 @@ export class MetricsCollectionOrchestrator {
       amount,
       isDeposit,
       isNewAccount,
+      isNewToken,
       timestamp,
       blockNumber,
     );
-    collector.collect();
-  }
-
-  static collectRateChangeMetrics(
-    rail: Rail,
-    oldRate: GraphBN,
-    newRate: GraphBN,
-    timestamp: GraphBN,
-    blockNumber: GraphBN,
-  ): void {
-    const collector = new RateChangeCollector(rail, oldRate, newRate, timestamp, blockNumber);
     collector.collect();
   }
 

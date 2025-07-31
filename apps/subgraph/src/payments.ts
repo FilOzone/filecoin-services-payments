@@ -428,6 +428,7 @@ export function handleDepositRecorded(event: DepositRecordedEvent): void {
     amount,
     true,
     isNewAccount,
+    isNewToken,
     event.block.timestamp,
     event.block.number,
   );
@@ -458,6 +459,7 @@ export function handleWithdrawRecorded(event: WithdrawRecordedEvent): void {
     tokenAddress,
     accountAddress,
     amount,
+    false,
     false,
     false,
     event.block.timestamp,

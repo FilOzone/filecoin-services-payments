@@ -2,7 +2,7 @@
 export { MetricsCollectionOrchestrator } from "./collectors";
 
 // Core metrics utilities
-export { MetricsEntityManager, MetricsHelpers } from "./core";
+export { MetricsEntityManager } from "./core";
 
 // Individual collectors (for advanced usage)
 export {
@@ -10,7 +10,6 @@ export {
   OperatorApprovalCollector,
   RailCreationCollector,
   RailStateChangeCollector,
-  RateChangeCollector,
   SettlementCollector,
   TokenActivityCollector,
 } from "./collectors";

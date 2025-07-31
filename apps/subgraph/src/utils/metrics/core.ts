@@ -1,5 +1,11 @@
 import { Address, Bytes, BigInt as GraphBN } from "@graphprotocol/graph-ts";
-import { DailyMetric, OperatorMetric, PaymentsMetric, TokenMetric, WeeklyMetric } from "../../../generated/schema";
+import {
+  DailyMetric,
+  PaymentsMetric,
+  DailyTokenMetric,
+  DailyOperatorMetric,
+  WeeklyMetric,
+} from "../../../generated/schema";
 import { DateHelpers, PAYMENTS_NETWORK_STATS_ID, ZERO_BIG_INT } from "./constants";
 
 // Core metric entity creation and loading functions
@@ -16,9 +22,9 @@ export class MetricsEntityManager {
       metric.date = DateHelpers.getDateString(dayStart);
 
       // Initialize all fields to zero
-      metric.dailyFilBurned = ZERO_BIG_INT;
+      metric.filBurned = ZERO_BIG_INT;
       metric.railsCreated = ZERO_BIG_INT;
-      metric.railsSettled = ZERO_BIG_INT;
+      metric.totalRailSettlements = ZERO_BIG_INT;
       metric.railsTerminated = ZERO_BIG_INT;
       metric.railsFinalized = ZERO_BIG_INT;
       metric.activeRailsCount = ZERO_BIG_INT;
@@ -26,8 +32,6 @@ export class MetricsEntityManager {
       metric.uniquePayees = ZERO_BIG_INT;
       metric.uniqueOperators = ZERO_BIG_INT;
       metric.newAccounts = ZERO_BIG_INT;
-      metric.cumulativeFilBurned = ZERO_BIG_INT;
-      metric.cumulativeRails = ZERO_BIG_INT;
     }
 
     return metric;
@@ -44,35 +48,39 @@ export class MetricsEntityManager {
       metric.timestamp = GraphBN.fromI64(weekStart);
       metric.week = DateHelpers.getWeek(weekStart);
 
-      metric.FilBurned = ZERO_BIG_INT;
+      // Initialize all fields to zero
+      metric.filBurned = ZERO_BIG_INT;
       metric.railsCreated = ZERO_BIG_INT;
-      metric.railsSettled = ZERO_BIG_INT;
-      metric.settlementsCount = ZERO_BIG_INT;
-      metric.rateChanges = ZERO_BIG_INT;
+      metric.totalRailSettlements = ZERO_BIG_INT;
+      metric.railsTerminated = ZERO_BIG_INT;
+      metric.railsFinalized = ZERO_BIG_INT;
       metric.activeRailsCount = ZERO_BIG_INT;
-      metric.uniqueActiveUsers = ZERO_BIG_INT;
+      metric.uniquePayers = ZERO_BIG_INT;
+      metric.uniquePayees = ZERO_BIG_INT;
+      metric.uniqueOperators = ZERO_BIG_INT;
+      metric.newAccounts = ZERO_BIG_INT;
     }
 
     return metric;
   }
 
-  static loadOrCreateTokenMetric(tokenAddress: Address, timestamp: GraphBN): TokenMetric {
+  static loadOrCreateTokenMetric(tokenAddress: Address, timestamp: GraphBN): DailyTokenMetric {
     const dayStart = DateHelpers.getDayStartTimestamp(timestamp.toI64());
     const id = tokenAddress.concat(Bytes.fromByteArray(Bytes.fromI64(dayStart)));
 
-    let metric = TokenMetric.load(Bytes.fromByteArray(id));
+    let metric = DailyTokenMetric.load(Bytes.fromByteArray(id));
 
     if (!metric) {
-      metric = new TokenMetric(Bytes.fromByteArray(id));
+      metric = new DailyTokenMetric(Bytes.fromByteArray(id));
       metric.token = tokenAddress;
       metric.timestamp = GraphBN.fromI64(dayStart);
       metric.date = DateHelpers.getDateString(dayStart);
 
-      metric.dailyVolume = ZERO_BIG_INT;
-      metric.dailyDeposit = ZERO_BIG_INT;
-      metric.dailyWithdrawal = ZERO_BIG_INT;
-      metric.dailySettledAmount = ZERO_BIG_INT;
-      metric.dailyCommissionPaid = ZERO_BIG_INT;
+      metric.volume = ZERO_BIG_INT;
+      metric.deposit = ZERO_BIG_INT;
+      metric.withdrawal = ZERO_BIG_INT;
+      metric.settledAmount = ZERO_BIG_INT;
+      metric.commissionPaid = ZERO_BIG_INT;
       metric.activeRailsCount = ZERO_BIG_INT;
       metric.uniqueHolders = ZERO_BIG_INT;
       metric.totalLocked = ZERO_BIG_INT;
@@ -81,21 +89,21 @@ export class MetricsEntityManager {
     return metric;
   }
 
-  static loadOrCreateOperatorMetric(operatorAddress: Address, timestamp: GraphBN): OperatorMetric {
+  static loadOrCreateOperatorMetric(operatorAddress: Address, timestamp: GraphBN): DailyOperatorMetric {
     const dayStart = DateHelpers.getDayStartTimestamp(timestamp.toI64());
     const id = operatorAddress.concat(Bytes.fromByteArray(Bytes.fromI64(dayStart)));
 
-    let metric = OperatorMetric.load(Bytes.fromByteArray(id));
+    let metric = DailyOperatorMetric.load(Bytes.fromByteArray(id));
 
     if (!metric) {
-      metric = new OperatorMetric(Bytes.fromByteArray(id));
+      metric = new DailyOperatorMetric(Bytes.fromByteArray(id));
       metric.operator = operatorAddress;
       metric.timestamp = GraphBN.fromI64(dayStart);
       metric.date = DateHelpers.getDateString(dayStart);
 
-      metric.dailyVolume = ZERO_BIG_INT;
-      metric.dailySettledAmount = ZERO_BIG_INT;
-      metric.dailyCommissionEarned = ZERO_BIG_INT;
+      metric.volume = ZERO_BIG_INT;
+      metric.settledAmount = ZERO_BIG_INT;
+      metric.commissionEarned = ZERO_BIG_INT;
       metric.railsCreated = ZERO_BIG_INT;
       metric.settlementsProcessed = ZERO_BIG_INT;
       metric.uniqueClients = ZERO_BIG_INT;
@@ -122,33 +130,5 @@ export class MetricsEntityManager {
     }
 
     return metric;
-  }
-}
-
-// Helper functions for common operations
-export class MetricsHelpers {
-  static updateCumulativeMetrics(dailyMetric: DailyMetric, previousDayMetric: DailyMetric | null): void {
-    if (previousDayMetric) {
-      dailyMetric.cumulativeFilBurned = previousDayMetric.cumulativeFilBurned.plus(dailyMetric.dailyFilBurned);
-      dailyMetric.cumulativeRails = previousDayMetric.cumulativeRails.plus(dailyMetric.railsCreated);
-    } else {
-      // First day
-      dailyMetric.cumulativeFilBurned = dailyMetric.dailyFilBurned;
-      dailyMetric.cumulativeRails = dailyMetric.railsCreated;
-    }
-  }
-
-  static calculateAverage(total: GraphBN, count: GraphBN): GraphBN {
-    if (count.equals(ZERO_BIG_INT)) {
-      return ZERO_BIG_INT;
-    }
-    return total.div(count);
-  }
-
-  static calculatePercentage(numerator: GraphBN, denominator: GraphBN): GraphBN {
-    if (denominator.equals(ZERO_BIG_INT)) {
-      return ZERO_BIG_INT;
-    }
-    return numerator.times(GraphBN.fromI32(10000)).div(denominator); // Return as basis points
   }
 }
