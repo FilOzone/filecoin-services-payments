@@ -28,14 +28,6 @@ test:
 chmod-deploy:
 	chmod +x ./tools/deploy.sh
 
-.PHONY: chmod-transfer
-chmod-transfer:
-	chmod +x ./tools/transfer-owner.sh
-
-.PHONY: chmod-get-owner
-chmod-get-owner:
-	chmod +x ./tools/get-owner.sh
-
 # Deployment targets
 .PHONY: deploy-calibnet
 deploy-calibnet: chmod-deploy
@@ -48,13 +40,3 @@ deploy-devnet: chmod-deploy
 .PHONY: deploy-mainnet
 deploy-mainnet: chmod-deploy
 	./tools/deploy.sh 314
-
-# Ownership management targets
-.PHONY: transfer-owner
-transfer-owner: chmod-transfer
-	./tools/transfer-owner.sh
-
-.PHONY: get-owner
-get-owner: chmod-get-owner
-	./tools/get-owner.sh
-

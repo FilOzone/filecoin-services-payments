@@ -7,7 +7,6 @@ A place for all tools related to deploying, upgrading, and managing the Payments
 ### Available Tools
 
 - **Deployment Script**: `deploy.sh` (all networks)
-- **Ownership Management**: `transfer-owner.sh`, `get-owner.sh`
 
 ### Deployment Script
 
@@ -22,23 +21,13 @@ This script deploys the Payments contract to the specified network. Usage:
 - Sets a default `RPC_URL` if not provided, based on `CHAIN_ID`.
 - Outputs the Payments Contract Address (proxy) and Implementation Address.
 
-### Ownership Management Scripts
-
-#### get-owner.sh
-This script displays the current owner of the Payments contract. Requires `PAYMENTS_CONTRACT_ADDRESS` environment variable.
-
-#### transfer-owner.sh
-This script transfers ownership of the Payments contract to a new owner. Requires `PAYMENTS_CONTRACT_ADDRESS` and `NEW_OWNER` environment variables.
-
 ### Environment Variables
 
 To use these scripts, set the following environment variables:
 - `RPC_URL` - The RPC URL for the network. For Calibration Testnet (314159) and Mainnet (314), a default is set if not provided. For devnet or any custom CHAIN_ID, you must set `RPC_URL` explicitly.
 - `KEYSTORE` - Path to the keystore file
 - `PASSWORD` - Password for the keystore
-- `PAYMENTS_CONTRACT_ADDRESS` - Address of the Payments contract (proxy, for ownership operations)
 - `IMPLEMENTATION_PATH` - Path to the implementation contract (e.g., "src/Payments.sol:Payments")
-- `NEW_OWNER` - Address of the new owner (for ownership transfers)
 
 ### Make Targets
 
@@ -47,10 +36,6 @@ To use these scripts, set the following environment variables:
 make deploy-devnet                  # Deploy to local devnet
 make deploy-calibnet                # Deploy to Calibration Testnet
 make deploy-mainnet                 # Deploy to Mainnet
-
-# Ownership
-make transfer-owner     # Transfer ownership
-make get-owner          # Display current owner
 ```
 
 ---
@@ -75,39 +60,11 @@ export PASSWORD="your-password"
 # Example: ./tools/deploy.sh 314159
 ```
 
-#### Get Owner
-
-```bash
-export PAYMENTS_CONTRACT_ADDRESS="0x..."
-# Optionally set RPC_URL
-./tools/get-owner.sh
-```
-
-#### Transfer Ownership
-
-```bash
-export KEYSTORE="/path/to/keystore"
-export PASSWORD="your-password"
-export PAYMENTS_CONTRACT_ADDRESS="0x..."
-export NEW_OWNER="0x..."
-# Optionally set RPC_URL
-./tools/transfer-owner.sh
-```
-
 ### Example Usage
 
 ```bash
-# Get current owner
-export PAYMENTS_CONTRACT_ADDRESS="0x..."
-make get-owner
-
 # Deploy to calibnet
 export KEYSTORE="/path/to/keystore"
 export PASSWORD="your-password"
 make deploy-calibnet
-
-# Transfer ownership
-export PAYMENTS_CONTRACT_ADDRESS="0x..."
-export NEW_OWNER="0x..."
-make transfer-owner
 ``` 
