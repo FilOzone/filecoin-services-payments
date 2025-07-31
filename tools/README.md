@@ -17,7 +17,7 @@ This script deploys the Payments contract to the specified network. Usage:
 ./tools/deploy.sh <chain_id>
 # Example: 314159 (calibnet), 314 (mainnet), 12345 (devnet)
 ```
-- Uses `IMPLEMENTATION_PATH` if set, otherwise defaults to `src/Payments.sol:Payments`.
+- Uses `PAYMENTS_PATH` if set, otherwise defaults to `src/Payments.sol:Payments`.
 - Sets a default `RPC_URL` if not provided, based on `CHAIN_ID`.
 - Outputs the Payments Contract Address (proxy) and Implementation Address.
 
@@ -27,7 +27,7 @@ To use these scripts, set the following environment variables:
 - `RPC_URL` - The RPC URL for the network. For Calibration Testnet (314159) and Mainnet (314), a default is set if not provided. For devnet or any custom CHAIN_ID, you must set `RPC_URL` explicitly.
 - `KEYSTORE` - Path to the keystore file
 - `PASSWORD` - Password for the keystore
-- `IMPLEMENTATION_PATH` - Path to the implementation contract (e.g., "src/Payments.sol:Payments")
+- `PAYMENTS_PATH` - Path to the implementation contract (e.g., "src/Payments.sol:Payments")
 
 ### Make Targets
 
@@ -55,7 +55,7 @@ Set the required environment variables as shown below, then invoke the scripts w
 ```bash
 export KEYSTORE="/path/to/keystore"
 export PASSWORD="your-password"
-# Optionally set IMPLEMENTATION_PATH and RPC_URL
+# Optionally set PAYMENTS_PATH and RPC_URL
 ./tools/deploy.sh <chain_id>
 # Example: ./tools/deploy.sh 314159
 ```
