@@ -15,3 +15,8 @@ LLM.md
 
 # VIM
 *.swp
+
+# Coverage files
+lcov.info
+coverage-summary.txt
+coverage/
