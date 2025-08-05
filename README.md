@@ -1,4 +1,4 @@
-# FWS Payments Contract
+# FWS Payments Contract: A Builder's Manual
 
 The FWS Payments contract enables ERC20 token payment flows through "rails" - automated payment channels between clients and recipients. The contract supports continuous rate based payments, one-time transfers, and payment validation during settlement.
 
