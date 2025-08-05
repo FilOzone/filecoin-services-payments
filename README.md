@@ -17,7 +17,6 @@ The FWS Payments contract enables ERC20 token payment flows through "rails" - au
   - [Operator One-Time Payment Window](#operator-one-time-payment-window)
   - [Handling Reductions to maxLockupPeriod](#handling-reductions-to-maxlockupperiod)
   - [Settlement](#settlement)
-  - [Validation](#validation)
 - [Worked Example](#worked-example)
   - [1. Initial Funding](#1-initial-funding)
   - [2. Operator Approval](#2-operator-approval)
@@ -242,17 +241,24 @@ Withdraws available tokens from the caller's account to a *specified* recipient 
 
 #### `getAccountInfoIfSettled(address token, address owner)`
 
-A read-only function that provides a real-time snapshot of an account's financial health by simulating a full settlement at the current block.
+This is a key read-only function that provides a real-time snapshot of an account's financial health. It works by performing an off-chain simulation of what the account's state *would be* if a settlement were to happen at the current block, without actually making any state changes.
 
-- **When to use:** Essential for UIs and monitoring tools to display an account's status. Operators can use this to check if a client is sufficiently funded before attempting an action that increases lockup.
-- **Parameters**:
-  - `token`: ERC20 token contract address.
-  - `owner`: The account address to query.
-- **Returns**:
-  - `fundedUntilEpoch`: The future epoch at which the account will run out of funds given its current balance and total lockup rate. A very large number indicates it's funded indefinitely (or has a zero rate).
-  - `currentFunds`: The raw balance of the account.
-  - `availableFunds`: The funds that would be available for withdrawal if a settlement were to happen now.
-  - `currentLockupRate`: The aggregate lockup rate per epoch across all of the owner's active rails.
+**Why and How to Use This Function**
+
+This function is the primary tool for monitoring an account's solvency and should be used by all participants in the system.
+
+-   **For Service Providers and Operators:** Before performing a service or attempting a transaction that increases a client's lockup (like `modifyRailLockup` or `modifyRailPayment`), call this function to assess risk. A `fundedUntilEpoch` that is in the past or very near the current block number is a strong indicator that the client is underfunded and that a termination of the rail may be necessary to activate the safety hatch.
+-   **For Clients (Payers):** This function allows clients to monitor their own account health. By checking `fundedUntilEpoch` and `availableFunds`, they can determine when a top-up is needed to avoid service interruptions or defaulting on their payment obligations.
+-   **For UIs and Dashboards:** This is the essential endpoint for building user-facing interfaces. It provides all the necessary information to display an account's total balance, what's available for withdrawal, its "burn rate", and a clear "funded until" status.
+
+**Understanding the Returned Values**
+
+-   **`fundedUntilEpoch`:** The future epoch at which the account is projected to run out of funds, given its current balance and `currentLockupRate`.
+    -   If this value is `type(uint256).max`, it means the account has a zero lockup rate and is funded indefinitely.
+    -   If this value is in the past, the account is currently in deficit and cannot be settled further for active rails.
+-   **`currentFunds`:** The raw, total balance of tokens held by the account in the contract.
+-   **`availableFunds`:** The portion of `currentFunds` that is *not* currently locked. This is the amount the user could successfully withdraw if they called `withdraw` right now.
+-   **`currentLockupRate`:** The aggregate "burn rate" of the account, representing the total `paymentRate` per epoch summed across all of the owner's active rails.
 
 ### Operator Management
 
@@ -299,7 +305,7 @@ Creates a new payment rail. This is the first step in setting up a new payment r
   - `to`: The recipient (payee) address.
   - `validator`: Optional validation contract address (`address(0)` for none).
   - `commissionRateBps`: Optional operator commission in basis points (e.g., 100 BPS = 1%).
-  - `serviceFeeRecipient`: The address that receives the operator commission.
+  - `serviceFeeRecipient`: The address that receives the operator commission. This is **required** if `commissionRateBps` is greater than 0.
 - **Returns**: A unique `railId`.
 - **Requirements**:
   - The caller (`msg.sender`) must be an approved operator for the `from` address and `token`.
@@ -317,43 +323,87 @@ Retrieves the current state of a payment rail.
 
 #### `terminateRail(uint256 railId)`
 
-Initiates the graceful shutdown of a payment rail. After termination, the rail can be settled for its remaining `lockupPeriod`, but the client's account stops accruing new lockup for it.
+Initiates the graceful shutdown of a payment rail. This is a critical function that formally ends a payment agreement and activates the lockup safety hatch for the service provider.
 
-- **When to use:** Called by an operator or a client to end a service agreement.
-- **Parameters**:
-  - `railId`: The rail's unique identifier.
-- **Requirements**:
-  - Caller must be the rail's client (and have a fully funded account) or the rail's operator.
-  - The rail must not have been already terminated.
+-   **When to use:** Called by an operator or a client to end a service agreement, either amicably or in an emergency.
+
+**Who Can Call This Function?**
+
+Authorization to terminate a rail is strictly controlled:
+
+-   **The Operator:** The rail's operator can call this function at any time.
+-   **The Client (Payer):** The client can only call this function if their account is fully funded (`isAccountLockupFullySettled` is true).
+-   **The Payee:** The service provider (payee) **cannot** call this function.
+
+**Core Logic and State Changes**
+
+-   **Sets a Final Deadline:** Termination sets a final settlement deadline (`endEpoch`). This is calculated as `client.lockupLastSettledAt + rail.lockupPeriod`, activating the `lockupPeriod` as a guaranteed payment window.
+-   **Stops Future Lockups:** The client's account `lockupRate` is immediately reduced by the rail's `paymentRate`. This is a crucial step that stops the client from accruing any *new* lockup obligations for this rail.
+-   **Frees Operator Allowances:** The operator's rate usage is decreased, freeing up their `rateAllowance` for other rails.
+
+**Validator Callback**
+
+If the rail has a validator, `terminateRail` makes a synchronous call to the `validator.railTerminated` function. This is a powerful mechanism:
+
+-   **Veto Power:** The validator can block the termination attempt entirely by reverting inside this callback. This gives the validator the ultimate say on whether a rail can be terminated, irrespective of who initiated the call.
+-   **Notification:** It serves as a direct notification to the validator that a rail it oversees is being terminated, allowing it to update its own internal state if needed.
+
+-   **Parameters**:
+    -   `railId`: The rail's unique identifier.
+-   **Requirements**:
+    -   Caller must be the rail's client (and have a fully funded account) or the rail's operator.
+    -   The rail must not have been already terminated.
 
 #### `modifyRailLockup(uint256 railId, uint256 period, uint256 lockupFixed)`
 
 Changes a rail's lockup parameters (`lockupPeriod` and `lockupFixed`).
 
-- **When to use:** An operator calls this to adjust the client's funding guarantee. For example, to set an initial `lockupFixed` for an onboarding fee, or to increase the `lockupPeriod` for a longer-term commitment.
-- **Parameters**:
-  - `railId`: The rail's unique identifier.
-  - `period`: The new lockup period in epochs.
-  - `lockupFixed`: The new fixed lockup amount.
-- **Requirements**:
-  - Caller must be the rail operator.
-  - **For terminated rails:** The lockup period cannot be changed, and the fixed lockup can only be decreased.
-  - **For active rails:** If the client's account isn't fully funded, lockup can only be decreased. Any increase requires sufficient available funds and is subject to the operator's allowances.
+-   **When to use:** An operator calls this to adjust the client's funding guarantee. This is used to set an initial `lockupFixed` for an onboarding fee, increase the `lockupPeriod` for a longer-term commitment, or decrease lockups when a deal's terms change.
+
+**Lockup Calculation and State Changes**
+
+This function recalculates the rail's total lockup requirement based on the new `period` and `lockupFixed` values. The change in the rail's individual lockup is then applied to the client's total account lockup (`Account.lockupCurrent`).
+
+-   **State Impact:** It modifies both the `Rail` struct (updating `lockupPeriod` and `lockupFixed`) and the client's `Account` struct (updating `lockupCurrent`).
+-   **Safety Checks:** The entire operation is wrapped in a modifier that settles the client's account lockup before and after the change. This ensures that any increase in lockup is only permitted if the client has sufficient available funds to cover it, maintaining the contract's solvency invariants.
+
+-   **Parameters**:
+    -   `railId`: The rail's unique identifier.
+    -   `period`: The new lockup period in epochs.
+    -   `lockupFixed`: The new fixed lockup amount.
+-   **Requirements**:
+    -   Caller must be the rail operator.
+    -   **For Terminated Rails:** The lockup period cannot be changed, and the `lockupFixed` can only be decreased.
+    -   **For Active Rails:**
+        -   Any increase to the `period` is checked against the operator's `maxLockupPeriod` allowance.
+        -   **Critical**: If the client's account is **not** fully funded (`isAccountLockupFullySettled` is false), changes are heavily restricted: the `period` cannot be changed, and `lockupFixed` can only be decreased. This prevents increasing the financial burden on an underfunded client.
 
 #### `modifyRailPayment(uint256 railId, uint256 newRate, uint256 oneTimePayment)`
 
-Modifies a rail's payment rate and/or makes an immediate one-time payment.
+Modifies a rail's payment rate, makes an immediate one-time payment, or both.
 
-- **When to use:** This is the primary function for starting a payment stream (by setting an initial `newRate`), adjusting it, or making ad-hoc payments.
-- **Parameters**:
-  - `railId`: The rail's unique identifier.
-  - `newRate`: The new per-epoch payment rate.
-  - `oneTimePayment`: An optional amount for an immediate payment, drawn from `lockupFixed`.
-- **Requirements**:
-  - Caller must be the rail operator.
-  - **For terminated rails:** The rate cannot be increased.
-  - **For active rails:** Rate changes are restricted if the client's account isn't fully funded.
-  - `oneTimePayment` must not exceed the rail's current `lockupFixed`.
+-   **When to use:** This is the primary function for starting a payment stream (by setting an initial `newRate`), adjusting it, or making ad-hoc payments.
+
+**Rate Change Behavior**
+
+When this function is used to change a rail's payment rate (`newRate` is different from the current rate), the change is not applied retroactively. The contract uses an internal queue to ensure that rate changes are applied precisely at the correct epoch:
+
+-   **Old Rate Preservation:** The contract records the *old* payment rate with a deadline (`untilEpoch`) set to the current block number.
+-   **Future Application:** The `newRate` becomes the rail's new default rate and will be used for settlement for all epochs *after* the current one.
+-   **Settlement Logic:** When `settleRail` is called, it processes this queue. It will use the old rate to settle payments up to and including the block where the change was made, and then use the new rate for subsequent blocks. This ensures perfect, per-epoch accounting even if rates change frequently.
+
+-   **Parameters**:
+    -   `railId`: The rail's unique identifier.
+    -   `newRate`: The new per-epoch payment rate.
+    -   `oneTimePayment`: An optional amount for an immediate payment, drawn from `lockupFixed`.
+-   **Requirements**:
+    -   Caller must be the rail operator.
+    -   `oneTimePayment` cannot exceed the rail's current `lockupFixed`.
+    -   **For Terminated Rails:**
+        -   The rate can only be decreased (`newRate <= oldRate`).
+        -   **Edge Case**: This function will revert if called after the rail's final settlement window (`endEpoch`) has passed.
+    -   **For Active Rails:**
+        -   **Critical**: If the client's account is **not** fully funded (`isAccountLockupFullySettled` is false), the payment rate **cannot be changed at all**. `newRate` must equal `oldRate`. This is a strict safety measure.
 
 #### `getRailsForPayerAndToken(address payer, address token)`
 
@@ -481,40 +531,42 @@ A client can reduce the operator's `maxLockupPeriod` or `lockupAllowance` after 
 
 ### Settlement
 
-Functions for processing payments and finalizing rails.
+Functions for processing payments by moving funds from the client to the payee based on the rail's terms.
 
 #### `settleRail(uint256 railId, uint256 untilEpoch)`
 
-Settles payments for a rail up to a specified epoch. This is the main function for processing payments. It calculates the amount owed based on the rail's rate(s) and the elapsed time, transfers the tokens, and updates the rail's state.
+This is the primary function for processing payments. It can be called by any rail participant (client, payee, or operator) to settle due payments up to a specified epoch. A network fee in the native token may be required for this transaction.
 
-- **When to use:** Any rail participant (client, payee, or operator) can call this periodically to ensure payments are processed. It's often called just before another action to ensure the rail's state is up-to-date.
-- **Parameters**:
-  - `railId`: The rail's unique identifier.
-  - `untilEpoch`: The target epoch for settlement (cannot be in the future).
-- **Returns**:
-  - `totalSettledAmount`: The gross amount transferred from the client's account.
-  - `totalNetPayeeAmount`: The net amount received by the payee after any commissions.
-  - `totalOperatorCommission`: The commission paid to the operator.
-  - `finalSettledEpoch`: The actual epoch to which settlement was completed, which may be less than `untilEpoch` if the client was not fully funded.
-  - `note`: Additional information, often from the validator.
-- **Requirements**:
-  - Cannot settle future epochs.
-  - Settlement may be partial if the client's account is not funded to cover the full duration up to `untilEpoch`.
+The behavior of `settleRail` critically depends on whether the rail is active or terminated:
 
-  **Note**: The final outcome of rail settlement is fully subject to decision of the validator contract.
+-   **For Active Rails:** Settlement can only proceed up to the epoch the client's account was last known to be fully funded (`lockupLastSettledAt`). This is a key safety feature: if a client becomes insolvent, settlement of an active rail halts, preventing it from running a deficit.
+-   **For Terminated Rails:** Settlement can proceed up to the rail's final `endEpoch`, drawing directly from the locked funds that act as a safety guarantee.
+
+**The Role of the Validator in Settlement**
+
+If a rail has a validator, `settleRail` will call the `validatePayment` function on the validator contract for each segment being settled. This gives the validator significant power:
+
+-   **It can approve the proposed payment** by returning the same amount and end epoch.
+-   **It can partially settle** by returning a `settleUpto` epoch that is earlier than the proposed end of the segment.
+-   **It can modify the payment amount** for the settled period by returning a `modifiedAmount`.
+-   **It can effectively reject settlement** for a segment by returning 0 for the settlement duration (`result.settleUpto` equals `epochStart`).
+
+However, the validator's power is not absolute. The Payments contract enforces these critical constraints on the validator's response:
+-   It **cannot** settle a rail beyond the proposed settlement segment.
+-   It **cannot** approve a payment amount that is greater than the maximum allowed by the rail's `paymentRate` for the duration it is approving.
+
+**Note**: While the validator has significant control, the final settlement outcome is also dependent on the client having sufficient funds for the amount being settled.
 
 #### `settleTerminatedRailWithoutValidation(uint256 railId)`
 
-An emergency settlement function for a terminated rail where the validator may be malfunctioning. It allows the *client* to settle the rail in full, bypassing the validator.
+This is a crucial escape-hatch function that allows the **client** to finalize a terminated rail that is otherwise stuck, for example, due to a malfunctioning validator.
 
-- **When to use:** As a last resort if a rail is terminated but the validator is preventing the final settlement, trapping funds. This ensures the client can eventually recover any remaining locked funds after paying the payee what is owed.
-- **Parameters**:
-  - `railId`: The identifier for the terminated rail.
-- **Returns**: Settlement details, similar to `settleRail`.
-- **Requirements**:
-  - Caller must be the rail's client.
-  - The rail must be terminated.
-  - The current block number must be past the rail's final settlement window (`rail.endEpoch`).
+-   **When to use:** As a last resort, after a rail has been terminated and its full settlement window (`endEpoch`) has passed.
+-   **What it does:** It settles the rail in full up to its `endEpoch`, completely bypassing the `validator`. This ensures that any funds owed to the payee are paid and any remaining client funds are unlocked.
+-   **Requirements**:
+    -   Caller must be the rail's client.
+    -   The rail must be terminated.
+    -   The current block number must be past the rail's final settlement window (`rail.endEpoch`).
 
 ### Validation
 
