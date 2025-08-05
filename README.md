@@ -168,25 +168,28 @@ This lockup mechanism places clear responsibilities on the service provider to m
 
 ### Account Management
 
-Functions for managing user accounts, including depositing and withdrawing funds.
+Functions for managing user accounts, including depositing and withdrawing funds. These functions support both ERC20 tokens and the native network token ($FIL) by using `address(0)` as the token address.
 
 #### `deposit(address token, address to, uint256 amount)`
 
 Deposits tokens into a specified account. This is the standard method for funding an account if not using permits. It intelligently handles fee-on-transfer tokens by calculating the actual amount received by the contract.
 
 - **When to use:** Use this for direct transfers from a wallet or another contract that has already approved the Payments contract to spend tokens.
+- **Native Token (FIL):** To deposit the native network token, use `address(0)` for the `token` parameter and send the corresponding amount in the transaction's `value`.
 - **Parameters**:
   - `token`: ERC20 token contract address.
   - `to`: The account address to credit with the deposit.
   - `amount`: The amount of tokens to transfer.
 - **Requirements**:
-  - The direct caller (`msg.sender`) must have approved the Payments contract to transfer at least `amount` of the specified `token`.
+  - For ERC20s, the direct caller (`msg.sender`) must have approved the Payments contract to transfer at least `amount` of the specified `token`.
+  - For the native token, `msg.value` must equal `amount`.
 
 #### `depositWithPermit(address token, address to, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s)`
 
 Deposits tokens using an EIP-2612 permit, allowing for gasless token approval.
 
 - **When to use:** Ideal for user-facing applications where the user can sign a permit off-chain. This combines approval and deposit into a single on-chain transaction, saving gas and improving user experience.
+- **Note:** This function is for ERC20 tokens only and does not support the native token.
 - **Parameters**:
   - `token`: ERC20 token contract address supporting EIP-2612 permits.
   - `to`: The account address to credit (must be the signer of the permit).
@@ -205,6 +208,7 @@ A powerful convenience function that combines three actions into one transaction
 3. Sets approval for an operator.
 
 - **When to use:** This is the most efficient way for a new user to get started. It funds their account and authorizes a service contract (operator) in a single step.
+- **Note:** This function is for ERC20 tokens only.
 - *(Parameters are as documented in the contract interface)*
 
 #### `depositWithPermitAndIncreaseOperatorApproval(...)`
@@ -212,6 +216,7 @@ A powerful convenience function that combines three actions into one transaction
 Similar to the above, but for increasing the allowances of an *existing* operator while depositing funds.
 
 - **When to use:** Useful when a user needs to top up their funds and simultaneously grant an existing operator higher spending or lockup limits for new or modified deals.
+- **Note:** This function is for ERC20 tokens only.
 - **Requirements**:
   - Operator must already be approved.
 - *(Parameters are as documented in the contract interface)*
@@ -221,6 +226,7 @@ Similar to the above, but for increasing the allowances of an *existing* operato
 Withdraws available (unlocked) tokens from the caller's account to their own wallet address.
 
 - **When to use:** When a user wants to retrieve funds from the Payments contract that are not currently reserved in lockups for active rails.
+- **Native Token (FIL):** To withdraw the native network token, use `address(0)` for the `token` parameter.
 - **Parameters**:
   - `token`: ERC20 token contract address.
   - `amount`: Token amount to withdraw.
@@ -232,6 +238,7 @@ Withdraws available (unlocked) tokens from the caller's account to their own wal
 Withdraws available tokens from the caller's account to a *specified* recipient address.
 
 - **When to use:** Same as `withdraw`, but allows sending the funds to any address, not just the caller's wallet.
+- **Native Token (FIL):** To withdraw the native network token, use `address(0)` for the `token` parameter.
 - **Parameters**:
   - `token`: ERC20 token contract address.
   - `to`: Recipient address.
