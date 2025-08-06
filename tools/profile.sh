@@ -1,6 +1,7 @@
 #!/bin/bash
 
 pushd ../localnet
+bash ./reset.sh
 source ./local_lotus.sh
 popd
 
