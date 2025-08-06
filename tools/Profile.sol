@@ -7,9 +7,11 @@ import "../test/mocks/MockERC20.sol";
 
 contract Profile is Script {
     function run(address sender) public {
+        vm.deal(sender, 2000 * 10 ** 18);
+
         vm.startBroadcast();
 
-        ERC20 token = new MockERC20("MockToken", "MOCK");
+        MockERC20 token = new MockERC20("MockToken", "MOCK");
 
         Payments payments = new Payments();
 
@@ -27,15 +29,28 @@ contract Profile is Script {
 
         payments.setOperatorApproval(address(token), operator, true, rateAllowance, lockupAllowance, maxLockupPeriod);
 
-        payments.createRail(address(token), from, to, validator, commissionRateBps, serviceFeeRecipient);
+        uint256 railId = payments.createRail(address(token), from, to, validator, commissionRateBps, serviceFeeRecipient);
+
+        uint256 amount = 10**18;
+        token.mint(from, amount);
+        token.approve(address(payments), amount);
+        payments.deposit(address(token), from, amount);
+
+        // TODO depositWithPermit
+        // TODO depositWithPermitAndApproveOperator
+        // TODO depositWithPermitAndIncreaseOperatorApproval
 
 
-        // deposit
-        // depositWithPermit
-        // depositWithPermitAndApproveOperator
-        // depositWithPermitAndIncreaseOperatorApproval
-        // modifyRailPayment
-        // modifyRailLockup
+        payments.modifyRailPayment(railId, 10**6, 0);
+
+        payments.modifyRailLockup(railId, 5, 10**6);
+
+        payments.modifyRailPayment(railId, 0, 10**6);
+
+        payments.settleRail{value:payments.NETWORK_FEE()}(railId, block.number);
+
+        payments.withdraw(address(token), 10**6);
+
         // increaseOperatorApproval
         // settleRail
         // withdraw

@@ -5,7 +5,7 @@ bash ./reset.sh
 source ./local_lotus.sh
 popd
 
-forge script -vvv -g 20000 --broadcast --chain-id $CHAIN_ID --sender $SENDER_ADDRESS --private-key $SENDER_KEY --rpc-url $API_URL/rpc/v1 --sig "run(address)" tools/Profile.sol:Profile $SENDER_ADDRESS
+forge script -vvv -g 30000 --broadcast --chain-id $CHAIN_ID --sender $SENDER_ADDRESS --private-key $SENDER_KEY --rpc-url $API_URL/rpc/v1 --sig "run(address)" tools/Profile.sol:Profile $SENDER_ADDRESS
 
 
 
