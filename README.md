@@ -1,4 +1,4 @@
-# FWS Payments Contract: A Builder's Manual
+# FWS Payments Contract
 
 The FWS Payments contract enables ERC20 token payment flows through "rails" - automated payment channels between clients and recipients. The contract supports continuous rate based payments, one-time transfers, and payment validation during settlement.
 
@@ -178,7 +178,7 @@ Deposits tokens into a specified account. This is the standard method for fundin
 - **When to use:** Use this for direct transfers from a wallet or another contract that has already approved the Payments contract to spend tokens.
 - **Native Token (FIL):** To deposit the native network token, use `address(0)` for the `token` parameter and send the corresponding amount in the transaction's `value`.
 - **Parameters**:
-  - `token`: ERC20 token contract address.
+  - `token`: ERC20 token contract address (`address(0)` for FIL).
   - `to`: The account address to credit with the deposit.
   - `amount`: The amount of tokens to transfer.
 - **Requirements**:
@@ -762,6 +762,7 @@ Payments(paymentsContractAddress).modifyRailLockup(
 There are two primary ways to end a deal:
 
 **Method 1: Soft End (Rate to Zero)**
+
 The operator can set the payment rate to zero and optionally charge a final termination fee. This keeps the rail active but stops recurring payments.
 
 ```solidity
@@ -774,6 +775,7 @@ Payments(paymentsContractAddress).modifyRailPayment(
 ```
 
 **Method 2: Hard Termination (Safety Hatch)**
+
 The operator (or a fully-funded client) can call `terminateRail`. This formally ends the agreement and activates the `lockupPeriod` as a final, guaranteed settlement window for the service provider.
 
 ```solidity
