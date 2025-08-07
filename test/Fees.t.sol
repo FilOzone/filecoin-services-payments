@@ -155,24 +155,24 @@ contract FeesTest is Test, BaseTestHelper {
 
     function testNetworkFee() public {
         uint256 networkFee = payments.NETWORK_FEE();
-        helper.advanceBlocks(5);
+        helper.advanceTime(5);
 
         uint256 startBalance = USER1.balance;
         vm.prank(USER1);
         vm.expectRevert(
             abi.encodeWithSelector(Errors.InsufficientNativeTokenForBurn.selector, networkFee, networkFee - 1)
         );
-        payments.settleRail{value: networkFee - 1}(rail1Id, block.number);
+        payments.settleRail{value: networkFee - 1}(rail1Id, block.timestamp);
         assertEq(startBalance, USER1.balance, "no fee should be taken on revert");
 
         startBalance = USER1.balance;
         vm.prank(USER1);
-        payments.settleRail{value: networkFee}(rail2Id, block.number);
+        payments.settleRail{value: networkFee}(rail2Id, block.timestamp);
         assertEq(startBalance - networkFee, USER1.balance, "fee should be taken on success");
 
         startBalance = USER1.balance;
         vm.prank(USER1);
-        payments.settleRail{value: networkFee + 100}(rail3Id, block.number);
+        payments.settleRail{value: networkFee + 100}(rail3Id, block.timestamp);
         assertEq(startBalance - networkFee, USER1.balance, "extra amount is returned");
     }
 }

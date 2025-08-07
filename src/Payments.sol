@@ -693,7 +693,7 @@ contract Payments is ReentrancyGuard {
         rail.to = to;
         rail.operator = operator;
         rail.validator = validator;
-        rail.settledUpTo = block.number;
+        rail.settledUpTo = block.timestamp;
         rail.endEpoch = 0;
         rail.commissionRateBps = commissionRateBps;
         rail.serviceFeeRecipient = serviceFeeRecipient;
@@ -846,8 +846,8 @@ contract Payments is ReentrancyGuard {
         if (isTerminated) {
             uint256 maxSettlementEpoch = maxSettlementEpochForTerminatedRail(rail, railId);
             require(
-                block.number < maxSettlementEpoch,
-                Errors.CannotModifyTerminatedRailBeyondEndEpoch(railId, maxSettlementEpoch, block.number)
+                block.timestamp < maxSettlementEpoch,
+                Errors.CannotModifyTerminatedRailBeyondEndEpoch(railId, maxSettlementEpoch, block.timestamp)
             );
 
             require(newRate <= oldRate, Errors.RateChangeNotAllowedOnTerminatedRail(railId));
@@ -911,22 +911,22 @@ contract Payments is ReentrancyGuard {
 
     function enqueueRateChange(Rail storage rail, uint256 oldRate, uint256 newRate) internal {
         // If rate hasn't changed or rail is already settled up to current block, nothing to do
-        if (newRate == oldRate || rail.settledUpTo == block.number) {
+        if (newRate == oldRate || rail.settledUpTo == block.timestamp) {
             return;
         }
 
         // Skip putting a 0-rate entry on an empty queue
         if (oldRate == 0 && rail.rateChangeQueue.isEmpty()) {
-            rail.settledUpTo = block.number;
+            rail.settledUpTo = block.timestamp;
             return;
         }
 
         // Only queue the previous rate once per epoch
-        if (rail.rateChangeQueue.isEmpty() || rail.rateChangeQueue.peekTail().untilEpoch != block.number) {
+        if (rail.rateChangeQueue.isEmpty() || rail.rateChangeQueue.peekTail().untilEpoch != block.timestamp) {
             // For validated rails, we need to enqueue the old rate.
             // This ensures that the old rate is applied up to and including the current block.
             // The new rate will be applicable starting from the next block.
-            rail.rateChangeQueue.enqueue(oldRate, block.number);
+            rail.rateChangeQueue.enqueue(oldRate, block.timestamp);
         }
     }
 
@@ -1004,8 +1004,8 @@ contract Payments is ReentrancyGuard {
         // Verify the current epoch is greater than the max settlement epoch
         uint256 maxSettleEpoch = maxSettlementEpochForTerminatedRail(rails[railId], railId);
         require(
-            block.number > maxSettleEpoch,
-            Errors.CannotSettleTerminatedRailBeforeMaxEpoch(railId, maxSettleEpoch + 1, block.number)
+            block.timestamp > maxSettleEpoch,
+            Errors.CannotSettleTerminatedRailBeforeMaxEpoch(railId, maxSettleEpoch + 1, block.timestamp)
         );
 
         return settleRailInternal(railId, maxSettleEpoch, true);
@@ -1027,7 +1027,7 @@ contract Payments is ReentrancyGuard {
     /// @notice Settles payments for a rail up to the specified epoch. Settlement may fail to reach the target epoch if either the client lacks the funds to pay up to the current epoch or the validator refuses to settle the entire requested range.
     /// @notice In the call to this function, the caller must include NETWORK_FEE amount of native token as a fee.
     /// @param railId The ID of the rail to settle.
-    /// @param untilEpoch The epoch up to which to settle (must not exceed current block number).
+    /// @param untilEpoch The epoch up to which to settle (must not exceed current block timestamp).
     /// @return totalSettledAmount The total amount settled and transferred.
     /// @return totalNetPayeeAmount The net amount credited to the payee after fees.
     /// @return totalOperatorCommission The commission credited to the operator.
@@ -1064,7 +1064,7 @@ contract Payments is ReentrancyGuard {
             string memory note
         )
     {
-        require(untilEpoch <= block.number, Errors.CannotSettleFutureEpochs(railId, untilEpoch, block.number));
+        require(untilEpoch <= block.timestamp, Errors.CannotSettleFutureEpochs(railId, untilEpoch, block.timestamp));
 
         Rail storage rail = rails[railId];
         Account storage payer = accounts[rail.token][rail.from];
@@ -1370,13 +1370,13 @@ contract Payments is ReentrancyGuard {
     }
 
     function isAccountLockupFullySettled(Account storage account) internal view returns (bool) {
-        return account.lockupLastSettledAt == block.number;
+        return account.lockupLastSettledAt == block.timestamp;
     }
 
     // attempts to settle account lockup up to and including the current epoch
     // returns the actual epoch upto and including which the lockup was settled
     function settleAccountLockup(address token, address owner, Account storage account) internal returns (uint256) {
-        uint256 currentEpoch = block.number;
+        uint256 currentEpoch = block.timestamp;
         uint256 elapsedTime = currentEpoch - account.lockupLastSettledAt;
 
         if (elapsedTime <= 0) {
@@ -1432,12 +1432,12 @@ contract Payments is ReentrancyGuard {
         returns (uint256)
     {
         // If current block beyond end epoch, return 0
-        if (block.number > rail.endEpoch) {
+        if (block.timestamp > rail.endEpoch) {
             return 0;
         }
 
         // Return the number of epochs (blocks) remaining until end epoch
-        return rail.endEpoch - block.number;
+        return rail.endEpoch - block.timestamp;
     }
 
     function isRailTerminated(Rail storage rail, uint256 railId) internal view returns (bool) {
@@ -1606,7 +1606,7 @@ contract Payments is ReentrancyGuard {
         currentFunds = account.funds;
         currentLockupRate = account.lockupRate;
 
-        uint256 currentEpoch = block.number;
+        uint256 currentEpoch = block.timestamp;
 
         fundedUntilEpoch = account.lockupRate == 0
             ? type(uint256).max

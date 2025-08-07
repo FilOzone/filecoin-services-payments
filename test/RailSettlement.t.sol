@@ -55,13 +55,13 @@ contract RailSettlementTest is Test, BaseTestHelper {
         );
 
         // Advance a few blocks
-        helper.advanceBlocks(5);
+        helper.advanceTime(5);
 
         // Settle for the elapsed blocks
         uint256 expectedAmount = rate * 5; // 5 blocks * 5 ether
-        console.log("block.number", block.number);
+        console.log("block.timestamp", block.timestamp);
 
-        settlementHelper.settleRailAndVerify(railId, block.number, expectedAmount, block.number);
+        settlementHelper.settleRailAndVerify(railId, block.timestamp, expectedAmount, block.timestamp);
     }
 
     function testSettleRailInDebt() public {
@@ -78,17 +78,17 @@ contract RailSettlementTest is Test, BaseTestHelper {
         );
 
         // Advance 7 blocks
-        helper.advanceBlocks(7);
+        helper.advanceTime(7);
 
         // With 200 ether deposit and 150 ether locked, we can only pay for 1 epoch (50 ether)
         uint256 expectedAmount = 50 ether;
         uint256 expectedEpoch = 2; // Initial epoch (1) + 1 epoch
 
         // First settlement
-        settlementHelper.settleRailAndVerify(railId, block.number, expectedAmount, expectedEpoch);
+        settlementHelper.settleRailAndVerify(railId, block.timestamp, expectedAmount, expectedEpoch);
 
         // Settle again - should be a no-op since we're already settled to the expected epoch
-        settlementHelper.settleRailAndVerify(railId, block.number, 0, expectedEpoch);
+        settlementHelper.settleRailAndVerify(railId, block.timestamp, 0, expectedEpoch);
 
         // Add more funds and settle again
         uint256 additionalDeposit = 300 ether;
@@ -98,7 +98,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
         uint256 expectedAmount2 = rate * 6; // 6 more epochs * 50 ether
 
         // Third settlement
-        settlementHelper.settleRailAndVerify(railId, block.number, expectedAmount2, block.number);
+        settlementHelper.settleRailAndVerify(railId, block.timestamp, expectedAmount2, block.timestamp);
     }
 
     function testSettleRailWithRateChange() public {
@@ -118,7 +118,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
         uint256 newRate2 = 7 ether;
 
         // Set the rate to 6 ether after 7 blocks
-        helper.advanceBlocks(7);
+        helper.advanceTime(7);
 
         // Increase operator allowances to allow rate modification
         // We increase rate allowance = 5 + 6 + 7 ether and add buffer for lockup
@@ -133,7 +133,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
         vm.stopPrank();
 
         // Advance 6 blocks
-        helper.advanceBlocks(6);
+        helper.advanceTime(6);
 
         // Operator increases the payment rate from 6 ETH to 7 ETH per block for epochs (15-21)
         // This creates a rate change queue
@@ -142,13 +142,13 @@ contract RailSettlementTest is Test, BaseTestHelper {
         vm.stopPrank();
 
         // Advance 6 blocks
-        helper.advanceBlocks(7);
+        helper.advanceTime(7);
 
         // expectedAmount = 5 * 7 + 6 * 6 + 7 * 7 = 120 ether
         uint256 expectedAmount = rate * 7 + newRate1 * 6 + newRate2 * 7;
 
         // settle and verify
-        settlementHelper.settleRailAndVerify(railId, block.number, expectedAmount, block.number);
+        settlementHelper.settleRailAndVerify(railId, block.timestamp, expectedAmount, block.timestamp);
     }
 
     //--------------------------------
@@ -173,14 +173,14 @@ contract RailSettlementTest is Test, BaseTestHelper {
         );
 
         // Advance several blocks
-        helper.advanceBlocks(5);
+        helper.advanceTime(5);
 
         // Verify standard validator approves full amount
         uint256 expectedAmount = rate * 5; // 5 blocks * 5 ether
 
         // Settle with validation
         RailSettlementHelpers.SettlementResult memory result =
-            settlementHelper.settleRailAndVerify(railId, block.number, expectedAmount, block.number);
+            settlementHelper.settleRailAndVerify(railId, block.timestamp, expectedAmount, block.timestamp);
 
         // Verify validaton note
         assertEq(result.note, "Standard approved payment", "Validator note should match");
@@ -218,13 +218,13 @@ contract RailSettlementTest is Test, BaseTestHelper {
             // Advance several blocks
             payments.modifyRailPayment(railId, rate, 0);
             expectedAmount += rate * 5;
-            helper.advanceBlocks(5);
+            helper.advanceTime(5);
         }
         vm.stopPrank();
 
         // Settle with validation
         RailSettlementHelpers.SettlementResult memory result =
-            settlementHelper.settleRailAndVerify(railId, block.number, expectedAmount, block.number);
+            settlementHelper.settleRailAndVerify(railId, block.timestamp, expectedAmount, block.timestamp);
 
         // Verify validator note
         assertEq(result.note, "Standard approved payment", "Validator note should match");
@@ -249,14 +249,14 @@ contract RailSettlementTest is Test, BaseTestHelper {
         );
 
         // Advance several blocks
-        helper.advanceBlocks(5);
+        helper.advanceTime(5);
 
         // Verify reduced amount (80% of original)
         uint256 expectedAmount = (rate * 5 * 80) / 100; // 5 blocks * 10 ether * 80%
 
         // Settle with validation - verify against NET payee amount
         RailSettlementHelpers.SettlementResult memory result =
-            settlementHelper.settleRailAndVerify(railId, block.number, expectedAmount, block.number);
+            settlementHelper.settleRailAndVerify(railId, block.timestamp, expectedAmount, block.timestamp);
 
         assertEq(result.netPayeeAmount, expectedAmount, "Net payee amount incorrect");
         assertEq(result.operatorCommission, 0, "Operator commission incorrect");
@@ -284,17 +284,17 @@ contract RailSettlementTest is Test, BaseTestHelper {
         );
 
         // Advance several blocks
-        uint256 advanceBlocks = 5;
-        helper.advanceBlocks(advanceBlocks);
+        uint256 advanceTime = 5;
+        helper.advanceTime(advanceTime);
 
         // Calculate expected settlement duration (60% of 5 blocks)
-        uint256 expectedDuration = (advanceBlocks * 60) / 100;
-        uint256 expectedSettledUpto = block.number - advanceBlocks + expectedDuration;
+        uint256 expectedDuration = (advanceTime * 60) / 100;
+        uint256 expectedSettledUpto = block.timestamp - advanceTime + expectedDuration;
         uint256 expectedAmount = rate * expectedDuration; // expectedDuration blocks * 10 ether
 
         // Settle with validation
         RailSettlementHelpers.SettlementResult memory result =
-            settlementHelper.settleRailAndVerify(railId, block.number, expectedAmount, expectedSettledUpto);
+            settlementHelper.settleRailAndVerify(railId, block.timestamp, expectedAmount, expectedSettledUpto);
 
         // Verify validator note
         assertEq(result.note, "Validator reduced settlement duration", "Validator note should match");
@@ -319,22 +319,22 @@ contract RailSettlementTest is Test, BaseTestHelper {
         );
 
         // Advance several blocks
-        helper.advanceBlocks(5);
+        helper.advanceTime(5);
 
         // Attempt settlement with malicious validator - should revert
         vm.prank(USER1);
         vm.expectRevert(
             abi.encodeWithSelector(
-                Errors.ValidatorSettledBeyondSegmentEnd.selector, railId, block.number, block.number + 10
+                Errors.ValidatorSettledBeyondSegmentEnd.selector, railId, block.timestamp, block.timestamp + 10
             )
         );
-        payments.settleRail{value: networkFee}(railId, block.number);
+        payments.settleRail{value: networkFee}(railId, block.timestamp);
 
         // Set the validator to return invalid amount but valid settlement duration
         validator.setMode(MockValidator.ValidatorMode.CUSTOM_RETURN);
         uint256 proposedAmount = rate * 5; // 5 blocks * 5 ether
         uint256 invalidAmount = proposedAmount * 2; // Double the correct amount
-        validator.setCustomValues(invalidAmount, block.number, "Attempting excessive payment");
+        validator.setCustomValues(invalidAmount, block.timestamp, "Attempting excessive payment");
 
         // Attempt settlement with excessive amount - should also revert
         vm.prank(USER1);
@@ -344,7 +344,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
                 Errors.ValidatorModifiedAmountExceedsMaximum.selector, railId, proposedAmount, invalidAmount
             )
         );
-        payments.settleRail{value: networkFee}(railId, block.number);
+        payments.settleRail{value: networkFee}(railId, block.timestamp);
     }
 
     //--------------------------------
@@ -367,11 +367,11 @@ contract RailSettlementTest is Test, BaseTestHelper {
         );
 
         // Advance several blocks
-        helper.advanceBlocks(3);
+        helper.advanceTime(3);
 
         // First settlement
         uint256 expectedAmount1 = rate * 3; // 3 blocks * 10 ether
-        settlementHelper.settleRailAndVerify(railId, block.number, expectedAmount1, block.number);
+        settlementHelper.settleRailAndVerify(railId, block.timestamp, expectedAmount1, block.timestamp);
 
         // Terminate the rail
         vm.prank(OPERATOR);
@@ -390,7 +390,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
         );
 
         // Advance more blocks
-        helper.advanceBlocks(10);
+        helper.advanceTime(10);
 
         // Get balances before final settlement
         Payments.Account memory userBefore = helper.getAccountData(USER1);
@@ -400,7 +400,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
         vm.prank(USER1);
 
         (uint256 settledAmount, uint256 netPayeeAmount, uint256 totalOperatorCommission, uint256 settledUpto,) =
-            payments.settleRail{value: networkFee}(railId, block.number);
+            payments.settleRail{value: networkFee}(railId, block.timestamp);
 
         // Verify that total settled amount is equal to the sum of net payee amount and operator commission
         assertEq(settledAmount, netPayeeAmount + totalOperatorCommission, "Mismatch in settled amount breakdown");
@@ -444,14 +444,14 @@ contract RailSettlementTest is Test, BaseTestHelper {
 
         // Settle immediately without advancing blocks - should be a no-op
         RailSettlementHelpers.SettlementResult memory result =
-            settlementHelper.settleRailAndVerify(railId, block.number, 0, block.number);
+            settlementHelper.settleRailAndVerify(railId, block.timestamp, 0, block.timestamp);
 
         console.log("result.note", result.note);
 
         // Verify the note indicates already settled
         assertTrue(
             bytes(result.note).length > 0
-                && stringsEqual(result.note, string.concat("already settled up to epoch ", vm.toString(block.number))),
+                && stringsEqual(result.note, string.concat("already settled up to epoch ", vm.toString(block.timestamp))),
             "Note should indicate already settled"
         );
     }
@@ -477,7 +477,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
         );
 
         // Simulate 5 blocks passing (blocks 1-5)
-        helper.advanceBlocks(5);
+        helper.advanceTime(5);
 
         // Increase operator allowances to allow rate modification
         // We double the rate allowance and add buffer for lockup
@@ -491,7 +491,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
         vm.stopPrank();
 
         // Simulate 5 blocks passing (blocks 6-10)
-        helper.advanceBlocks(5);
+        helper.advanceTime(5);
 
         // Calculate expected settlement:
         // Phase 1 (blocks 1-5): 5 blocks at 5 ETH/block → 25 ETH total -> after validation (80%) -> 20 ETH total
@@ -505,7 +505,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
 
         // settle and verify rail
         RailSettlementHelpers.SettlementResult memory result =
-            settlementHelper.settleRailAndVerify(railId, block.number, expectedAmount, block.number);
+            settlementHelper.settleRailAndVerify(railId, block.timestamp, expectedAmount, block.timestamp);
 
         console.log("result.note", result.note);
     }
@@ -532,15 +532,15 @@ contract RailSettlementTest is Test, BaseTestHelper {
         );
 
         // Simulate 5 blocks passing (blocks 1-5)
-        helper.advanceBlocks(5);
+        helper.advanceTime(5);
 
         // Initial settlement for the first 5 blocks ( epochs 1-5 )
         // Duration reduction: 5 blocks * 60% = 3 blocks settled
         // Amount: 3 blocks * 5 ETH = 15 ETH
         // LastSettledUpto: 1 + (6 - 1) * 60% = 4
         vm.prank(USER1);
-        payments.settleRail{value: networkFee}(railId, block.number);
-        uint256 lastSettledUpto = 1 + ((block.number - 1) * factor) / 100; // validator only settles for 60% of the duration (block.number - lastSettledUpto = epoch 1)
+        payments.settleRail{value: networkFee}(railId, block.timestamp);
+        uint256 lastSettledUpto = 1 + ((block.timestamp - 1) * factor) / 100; // validator only settles for 60% of the duration (block.timestamp - lastSettledUpto = epoch 1)
         vm.stopPrank();
 
         // update operator allowances for rate modification
@@ -554,7 +554,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
         vm.stopPrank();
 
         // Simulate 5 blocks passing (blocks 6-10)
-        helper.advanceBlocks(5);
+        helper.advanceTime(5);
 
         // Expected settlement calculation:
         // - Rate change was at block 5, creating a boundary
@@ -571,7 +571,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
 
         // settle and verify rail
         RailSettlementHelpers.SettlementResult memory result =
-            settlementHelper.settleRailAndVerify(railId, block.number, expectedAmount, expectedSettledUpto);
+            settlementHelper.settleRailAndVerify(railId, block.timestamp, expectedAmount, expectedSettledUpto);
 
         console.log("result.note", result.note);
     }
@@ -593,8 +593,8 @@ contract RailSettlementTest is Test, BaseTestHelper {
         helper.setupOperatorApproval(USER1, OPERATOR, 10 ether, 100 ether, MAX_LOCKUP_PERIOD);
 
         // advance a few blocks so there is “history” to mark as settled
-        helper.advanceBlocks(4);
-        uint256 beforeBlock = block.number;
+        helper.advanceTime(4);
+        uint256 beforeBlock = block.timestamp;
 
         // change rate: 0 → 5 ether
         vm.prank(OPERATOR);
@@ -653,7 +653,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
 
         // Advance time
         uint256 elapsedBlocks = 5;
-        helper.advanceBlocks(elapsedBlocks);
+        helper.advanceTime(elapsedBlocks);
 
         // --- Balances Before ---
         Payments.Account memory payerBefore = helper.getAccountData(USER1);
@@ -664,7 +664,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
         // --- Settle Rail ---
         vm.startPrank(USER1); // Any participant can settle
         (uint256 settledAmount, uint256 netPayeeAmount, uint256 operatorCommission, uint256 settledUpto,) =
-            payments.settleRail{value: networkFee}(railId, block.number);
+            payments.settleRail{value: networkFee}(railId, block.timestamp);
         vm.stopPrank();
 
         // --- Expected Calculations ---
@@ -679,7 +679,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
         assertEq(settledAmount, expectedSettledAmount, "Returned settledAmount incorrect");
         assertEq(netPayeeAmount, expectedNetPayeeAmount, "Returned netPayeeAmount incorrect");
         assertEq(operatorCommission, expectedOperatorCommission, "Returned operatorCommission incorrect");
-        assertEq(settledUpto, block.number, "Returned settledUpto incorrect");
+        assertEq(settledUpto, block.timestamp, "Returned settledUpto incorrect");
 
         // 2. Balances after settlement
         Payments.Account memory payerAfter = helper.getAccountData(USER1);
@@ -721,7 +721,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
         );
 
         // Advance 3 blocks at initial rate (5 ether/block)
-        helper.advanceBlocks(3);
+        helper.advanceTime(3);
 
         // Change rate to zero
         vm.prank(OPERATOR);
@@ -729,7 +729,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
         vm.stopPrank();
 
         // Advance 4 blocks at zero rate (no payment)
-        helper.advanceBlocks(4);
+        helper.advanceTime(4);
 
         // Change rate to new non-zero rate
         uint256 finalRate = 8 ether;
@@ -738,7 +738,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
         vm.stopPrank();
 
         // Advance 5 blocks at final rate (8 ether/block)
-        helper.advanceBlocks(5);
+        helper.advanceTime(5);
 
         // Calculate expected settlement:
         // Phase 1 (blocks 1-3): 3 blocks at 5 ether/block = 15 ether
@@ -749,7 +749,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
 
         // Settle and verify
         RailSettlementHelpers.SettlementResult memory result =
-            settlementHelper.settleRailAndVerify(railId, block.number, expectedAmount, block.number);
+            settlementHelper.settleRailAndVerify(railId, block.timestamp, expectedAmount, block.timestamp);
 
         console.log("Non-zero -> Zero -> Non-zero settlement note:", result.note);
     }
@@ -778,7 +778,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
         );
 
         // Advance 2 blocks at zero rate (no payment)
-        helper.advanceBlocks(2);
+        helper.advanceTime(2);
 
         // Change rate to non-zero
         uint256 middleRate = 6 ether;
@@ -787,7 +787,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
         vm.stopPrank();
 
         // Advance 4 blocks at middle rate (6 ether/block)
-        helper.advanceBlocks(4);
+        helper.advanceTime(4);
 
         // Change rate back to zero
         vm.prank(OPERATOR);
@@ -795,7 +795,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
         vm.stopPrank();
 
         // Advance 3 blocks at zero rate again (no payment)
-        helper.advanceBlocks(3);
+        helper.advanceTime(3);
 
         // Calculate expected settlement:
         // Phase 1 (blocks 1-2): 2 blocks at 0 ether/block = 0 ether
@@ -806,7 +806,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
 
         // Settle and verify
         RailSettlementHelpers.SettlementResult memory result =
-            settlementHelper.settleRailAndVerify(railId, block.number, expectedAmount, block.number);
+            settlementHelper.settleRailAndVerify(railId, block.timestamp, expectedAmount, block.timestamp);
 
         console.log("Zero -> Non-zero -> Zero settlement note:", result.note);
     }
@@ -845,21 +845,21 @@ contract RailSettlementTest is Test, BaseTestHelper {
         */
         // Advance 100 blocks and turn rate off
         // This adds a rate == 1, untilEpoch == 100 segment to the queue
-        helper.advanceBlocks(100);
+        helper.advanceTime(100);
         vm.prank(OPERATOR);
         payments.modifyRailPayment(railId, rateOff, 0);
         vm.stopPrank();
 
         // Advance 100 blocks and turn rate on
         // This adds a rate == 0, untilEpoch == 200 segment to the queue
-        helper.advanceBlocks(100);
+        helper.advanceTime(100);
         vm.prank(OPERATOR);
         payments.modifyRailPayment(railId, rateOn, 0);
         vm.stopPrank();
 
         // Advance 100 blocks and turn rate off
         // This adds a final rate == 1, untilEpoch == 300 segment to the queue
-        helper.advanceBlocks(100);
+        helper.advanceTime(100);
         vm.prank(OPERATOR);
         payments.modifyRailPayment(railId, rateOff, 0);
         vm.stopPrank();
@@ -889,9 +889,9 @@ contract RailSettlementTest is Test, BaseTestHelper {
         );
 
         // Advance and settle to ensure the rail is active
-        helper.advanceBlocks(3);
+        helper.advanceTime(3);
         vm.prank(USER1);
-        payments.settleRail{value: networkFee}(railId, block.number);
+        payments.settleRail{value: networkFee}(railId, block.timestamp);
 
         // Terminate the rail
         vm.prank(OPERATOR);
@@ -902,14 +902,14 @@ contract RailSettlementTest is Test, BaseTestHelper {
         uint256 endEpoch = rail.endEpoch;
 
         // Advance blocks to reach the end epoch
-        uint256 blocksToAdvance = endEpoch - block.number;
-        helper.advanceBlocks(blocksToAdvance);
+        uint256 blocksToAdvance = endEpoch - block.timestamp;
+        helper.advanceTime(blocksToAdvance);
 
         // Now we're at the end epoch - try to modify rate
         vm.prank(OPERATOR);
         vm.expectRevert(
             abi.encodeWithSelector(
-                Errors.CannotModifyTerminatedRailBeyondEndEpoch.selector, railId, endEpoch, block.number
+                Errors.CannotModifyTerminatedRailBeyondEndEpoch.selector, railId, endEpoch, block.timestamp
             )
         );
         payments.modifyRailPayment(railId, 5 ether, 0);
@@ -918,19 +918,19 @@ contract RailSettlementTest is Test, BaseTestHelper {
         vm.prank(OPERATOR);
         vm.expectRevert(
             abi.encodeWithSelector(
-                Errors.CannotModifyTerminatedRailBeyondEndEpoch.selector, railId, endEpoch, block.number
+                Errors.CannotModifyTerminatedRailBeyondEndEpoch.selector, railId, endEpoch, block.timestamp
             )
         );
         payments.modifyRailPayment(railId, rate, 1 ether);
 
         // Advance one more block to go beyond the end epoch
-        helper.advanceBlocks(1);
+        helper.advanceTime(1);
 
         // Try to modify rate again - should still revert
         vm.prank(OPERATOR);
         vm.expectRevert(
             abi.encodeWithSelector(
-                Errors.CannotModifyTerminatedRailBeyondEndEpoch.selector, railId, endEpoch, block.number
+                Errors.CannotModifyTerminatedRailBeyondEndEpoch.selector, railId, endEpoch, block.timestamp
             )
         );
         payments.modifyRailPayment(railId, 5 ether, 0);
@@ -939,7 +939,7 @@ contract RailSettlementTest is Test, BaseTestHelper {
         vm.prank(OPERATOR);
         vm.expectRevert(
             abi.encodeWithSelector(
-                Errors.CannotModifyTerminatedRailBeyondEndEpoch.selector, railId, endEpoch, block.number
+                Errors.CannotModifyTerminatedRailBeyondEndEpoch.selector, railId, endEpoch, block.timestamp
             )
         );
         payments.modifyRailPayment(railId, 5 ether, 1 ether);

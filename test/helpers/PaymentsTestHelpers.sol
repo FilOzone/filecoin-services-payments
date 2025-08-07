@@ -511,8 +511,8 @@ contract PaymentsTestHelpers is Test, BaseTestHelper {
         );
     }
 
-    function advanceBlocks(uint256 blocks) public {
-        vm.roll(block.number + blocks);
+    function advanceTime(uint256 time) public {
+        vm.warp(block.timestamp + time);
     }
 
     function assertAccountState(

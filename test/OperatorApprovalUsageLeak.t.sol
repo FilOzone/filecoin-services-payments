@@ -71,15 +71,15 @@ contract OperatorApprovalUsageLeakTest is Test, BaseTestHelper {
         uint256 endEpoch = lockupLastSettledAt + lockupPeriod;
 
         console.log("\nAfter termination:");
-        console.log("  Current block:", block.number);
+        console.log("  Current block:", block.timestamp);
         console.log("  Lockup last settled at:", lockupLastSettledAt);
         console.log("  Rail end epoch:", endEpoch);
 
         // Move time forward to after the rail's end epoch
-        vm.roll(endEpoch + 1);
+        vm.warp(endEpoch + 1);
 
         console.log("\nAfter time advance:");
-        console.log("  Current block:", block.number);
+        console.log("  Current block:", block.timestamp);
 
         // Settle the rail completely - this will trigger finalizeTerminatedRail
         vm.startPrank(USER2); // Payee can settle
@@ -137,7 +137,7 @@ contract OperatorApprovalUsageLeakTest is Test, BaseTestHelper {
             uint256 endEpoch = lockupLastSettledAt + lockupPeriod;
 
             // Move time forward
-            vm.roll(endEpoch + 1);
+            vm.warp(endEpoch + 1);
 
             // Settle to trigger finalization
             vm.startPrank(USER2);

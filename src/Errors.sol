@@ -148,8 +148,8 @@ library Errors {
     /// @notice Cannot modify a terminated rail beyond its end epoch
     /// @param railId The ID of the rail
     /// @param maxSettlementEpoch The last allowed block for modifications
-    /// @param blockNumber The current block number
-    error CannotModifyTerminatedRailBeyondEndEpoch(uint256 railId, uint256 maxSettlementEpoch, uint256 blockNumber);
+    /// @param blockTimestamp The current block timestamp
+    error CannotModifyTerminatedRailBeyondEndEpoch(uint256 railId, uint256 maxSettlementEpoch, uint256 blockTimestamp);
 
     /// @notice Cannot increase the payment rate or change the rate on a terminated rail
     /// @param railId The ID of the rail
@@ -181,12 +181,12 @@ library Errors {
 
     /// @notice Cannot settle a terminated rail without validation until after the max settlement epoch has passed
     /// @param railId The ID of the rail being settled
-    /// @param currentBlock The current block number (actual)
+    /// @param currentBlock The current block timestamp (actual)
     /// @param requiredBlock The max settlement epoch block (expected, must be exceeded)
     error CannotSettleTerminatedRailBeforeMaxEpoch(
         uint256 railId,
         uint256 requiredBlock, // expected (maxSettleEpoch + 1)
-        uint256 currentBlock // actual (block.number)
+        uint256 currentBlock // actual (block.timestamp)
     );
 
     /// @notice Cannot settle a rail for epochs in the future.

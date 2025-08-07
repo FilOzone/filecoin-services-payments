@@ -251,7 +251,7 @@ Rate changes to a rail are the most complex.  They require adding a segment to t
 
 All three modifications change the total amount of `lockupCurrent` in the payer's account.  These changes are made over the payer's account under the assumption that they have enough available balance which is then checked in the post condition modifier.
 
-Only live fully settled accounts without any debt, i.e. with `lockupLastSettledAt == block.number`, are allowed to increase `fixedLockup`, make any changes to the `lockupPeriod` or increase to the rail's `paymentRate`. Terminated and debtor rails *are* allowed to *reduce* their `fixedLockup`.  And terminated rails are allowed to decrease the rail's payment rate (debtors can't make any changes).
+Only live fully settled accounts without any debt, i.e. with `lockupLastSettledAt == block.timestamp`, are allowed to increase `fixedLockup`, make any changes to the `lockupPeriod` or increase to the rail's `paymentRate`. Terminated and debtor rails *are* allowed to *reduce* their `fixedLockup`.  And terminated rails are allowed to decrease the rail's payment rate (debtors can't make any changes).
 
 For all three changes the operator approval must be consulted to check that the proposed modifications are within the operator's remaining allowances.  It is worth noting that the operator approval has a field `maxLockupPeriod` which sets a ceiling on the lockup period and hence streaming lockup.
 

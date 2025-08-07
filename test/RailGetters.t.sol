@@ -263,8 +263,8 @@ contract PayeeRailsTest is Test, BaseTestHelper {
         }
 
         // Advance blocks beyond the end epoch of Rail 3
-        uint256 blocksToAdvance = endEpoch - block.number + 1;
-        helper.advanceBlocks(blocksToAdvance);
+        uint256 blocksToAdvance = endEpoch - block.timestamp + 1;
+        helper.advanceTime(blocksToAdvance);
 
         // IMPORTANT: Settle the rail now that we're beyond its end epoch
         // This will finalize the rail (set rail.from = address(0))

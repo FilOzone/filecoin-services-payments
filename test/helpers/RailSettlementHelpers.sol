@@ -80,7 +80,7 @@ contract RailSettlementHelpers is Test {
             payments.modifyRailPayment(railId, rates[i], 0);
 
             // Advance one block to ensure the changes are at different epochs
-            baseHelper.advanceBlocks(1);
+            baseHelper.advanceTime(1);
         }
         vm.stopPrank();
 
@@ -105,7 +105,7 @@ contract RailSettlementHelpers is Test {
         );
 
         // Advance blocks past the lockup period to force the rail into debt
-        baseHelper.advanceBlocks(lockupPeriod + 1);
+        baseHelper.advanceTime(lockupPeriod + 1);
 
         return railId;
     }
@@ -201,7 +201,7 @@ contract RailSettlementHelpers is Test {
             "Rail end epoch should be account lockup last settled at + rail lockup period"
         );
 
-        return settleRailAndVerify(railId, block.number, expectedAmount, expectedUpto);
+        return settleRailAndVerify(railId, block.timestamp, expectedAmount, expectedUpto);
     }
 
     function modifyRailSettingsAndVerify(

@@ -617,7 +617,7 @@ Payment settlement can be triggered by any rail participant:
 // Settlement call - can be made by client, service provider, or operator
 (uint256 amount, uint256 settledEpoch, string memory note) = Payments(paymentsContractAddress).settleRail(
     railId,        // Rail ID
-    block.number   // Settle up to current epoch
+    block.timestamp   // Settle up to now
 );
 ```
 

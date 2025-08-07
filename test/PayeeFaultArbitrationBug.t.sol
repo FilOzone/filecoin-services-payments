@@ -61,10 +61,10 @@ contract PayeeFaultArbitrationBugTest is Test, BaseTestHelper {
         Payments.RailView memory rail = payments.getRail(railId);
         assertEq(validator.lastEndEpoch(), rail.endEpoch, "Incorrect endEpoch passed to validator");
 
-        helper.advanceBlocks(15);
+        helper.advanceTime(15);
 
         vm.prank(USER1);
-        payments.settleRail{value: networkFee}(railId, block.number);
+        payments.settleRail{value: networkFee}(railId, block.timestamp);
 
         Payments.Account memory payerFinal = helper.getAccountData(USER1);
 
@@ -92,10 +92,10 @@ contract PayeeFaultArbitrationBugTest is Test, BaseTestHelper {
         console.log("Expected total lockup:", expectedTotalLockup);
 
         vm.prank(OPERATOR);
-        helper.advanceBlocks(15);
+        helper.advanceTime(15);
 
         vm.prank(USER1);
-        payments.settleRail{value: networkFee}(railId, block.number);
+        payments.settleRail{value: networkFee}(railId, block.timestamp);
 
         Payments.Account memory payerFinal = helper.getAccountData(USER1);
 
@@ -128,10 +128,10 @@ contract PayeeFaultArbitrationBugTest is Test, BaseTestHelper {
         console.log("Expected total lockup:", expectedTotalLockup);
 
         vm.prank(OPERATOR);
-        helper.advanceBlocks(15);
+        helper.advanceTime(15);
 
         vm.prank(USER1);
-        payments.settleRail{value: networkFee}(railId, block.number);
+        payments.settleRail{value: networkFee}(railId, block.timestamp);
 
         Payments.Account memory payerFinal = helper.getAccountData(USER1);
 

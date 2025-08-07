@@ -149,7 +149,7 @@ contract AccessControlTest is Test, BaseTestHelper {
 
     function testTerminateRail_OnlyOperatorCanTerminateWhenLockupNotFullySettled() public {
         // Advance blocks to create an unsettled state
-        helper.advanceBlocks(500);
+        helper.advanceTime(500);
 
         // Client should not be able to terminate because lockup is not fully settled
         vm.startPrank(USER1);

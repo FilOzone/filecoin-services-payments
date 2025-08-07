@@ -212,7 +212,7 @@ contract AccountManagementTest is Test, BaseTestHelper {
             DEPOSIT_AMOUNT, // expected funds
             lockedAmount, // expected lockup
             0, // expected rate (not set in this test)
-            block.number // expected last settled
+            block.timestamp // expected last settled
         );
 
         // Try to withdraw more than unlocked funds
@@ -263,7 +263,7 @@ contract AccountManagementTest is Test, BaseTestHelper {
         );
 
         // Advance 10 blocks to create settlement gap
-        helper.advanceBlocks(10);
+        helper.advanceTime(10);
 
         // Make another deposit to trigger settlement
         helper.makeDeposit(USER1, USER1, DEPOSIT_AMOUNT);
@@ -274,7 +274,7 @@ contract AccountManagementTest is Test, BaseTestHelper {
             DEPOSIT_AMOUNT * 2, // expected funds
             20 ether, // expected lockup (2 rails × 0.5 ether per block × 10 blocks + future lockup of 10 ether)
             lockupRate * 2, // expected rate (2 * 0.5 ether)
-            block.number // expected last settled
+            block.timestamp // expected last settled
         );
     }
 
@@ -335,7 +335,7 @@ contract AccountManagementTest is Test, BaseTestHelper {
         uint256 lockupRate,
         uint256 lockupLastSettledAt
     ) internal view returns (uint256 simulatedLockupCurrent, uint256 availableBalance) {
-        uint256 currentEpoch = block.number;
+        uint256 currentEpoch = block.timestamp;
         uint256 elapsedTime = currentEpoch - lockupLastSettledAt;
         simulatedLockupCurrent = lockupCurrent;
 
@@ -379,7 +379,7 @@ contract AccountManagementTest is Test, BaseTestHelper {
         );
 
         // Advance 5 blocks
-        helper.advanceBlocks(5);
+        helper.advanceTime(5);
 
         // Get raw account data for debugging
         (uint256 funds, uint256 lockupCurrent, uint256 lockupRate2, uint256 lockupLastSettledAt) =
@@ -396,7 +396,7 @@ contract AccountManagementTest is Test, BaseTestHelper {
         assertEq(totalBalance1, DEPOSIT_AMOUNT, "total balance mismatch");
         assertEq(availableBalance1, availableBalance, "available balance mismatch");
         assertEq(lockupRate1, lockupRate, "lockup rate mismatch");
-        assertEq(fundedUntil, block.number + (availableBalance / lockupRate), "funded until mismatch");
+        assertEq(fundedUntil, block.timestamp + (availableBalance / lockupRate), "funded until mismatch");
     }
 
     function testGetAccountInfoWithPartialSettlement() public {
@@ -422,7 +422,7 @@ contract AccountManagementTest is Test, BaseTestHelper {
         );
 
         // Advance blocks to create partial settlement
-        helper.advanceBlocks(5);
+        helper.advanceTime(5);
 
         // Get raw account data for debugging
         (uint256 funds, uint256 lockupCurrent, uint256 lockupRate2, uint256 lockupLastSettledAt) =
@@ -439,7 +439,7 @@ contract AccountManagementTest is Test, BaseTestHelper {
         assertEq(totalBalance2, DEPOSIT_AMOUNT, "total balance mismatch");
         assertEq(availableBalance2, availableBalance, "available balance mismatch");
         assertEq(lockupRate3, lockupRate, "lockup rate mismatch");
-        assertEq(fundedUntil, block.number + (availableBalance / lockupRate), "funded until mismatch");
+        assertEq(fundedUntil, block.timestamp + (availableBalance / lockupRate), "funded until mismatch");
     }
 
     function testGetAccountInfoInDebt() public {
@@ -465,7 +465,7 @@ contract AccountManagementTest is Test, BaseTestHelper {
         );
 
         // Advance blocks to create debt
-        helper.advanceBlocks(60); // This will create debt as 60 * 2 > DEPOSIT_AMOUNT
+        helper.advanceTime(60); // This will create debt as 60 * 2 > DEPOSIT_AMOUNT
 
         // Get account info
         (uint256 fundedUntil, uint256 totalBalance3, uint256 availableBalance3, uint256 lockupRate3) =
@@ -475,7 +475,7 @@ contract AccountManagementTest is Test, BaseTestHelper {
         assertEq(totalBalance3, DEPOSIT_AMOUNT, "total balance mismatch");
         assertEq(availableBalance3, 0, "available balance should be 0");
         assertEq(lockupRate3, lockupRate, "lockup rate mismatch");
-        assertTrue(fundedUntil < block.number, "funded until should be in the past");
+        assertTrue(fundedUntil < block.timestamp, "funded until should be in the past");
     }
 
     function testGetAccountInfoAfterRateChange() public {
@@ -501,7 +501,7 @@ contract AccountManagementTest is Test, BaseTestHelper {
         );
 
         // Advance some blocks
-        helper.advanceBlocks(5);
+        helper.advanceTime(5);
 
         // Change the rate
         uint256 newRate = 2 ether; // 2 tokens per block
@@ -523,6 +523,6 @@ contract AccountManagementTest is Test, BaseTestHelper {
         assertEq(totalBalance4, DEPOSIT_AMOUNT, "total balance mismatch");
         assertEq(availableBalance4, availableBalance, "available balance mismatch");
         assertEq(lockupRate4, newRate, "lockup rate mismatch");
-        assertEq(fundedUntil, block.number + (availableBalance / newRate), "funded until mismatch");
+        assertEq(fundedUntil, block.timestamp + (availableBalance / newRate), "funded until mismatch");
     }
 }

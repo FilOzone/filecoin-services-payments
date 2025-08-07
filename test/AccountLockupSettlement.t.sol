@@ -37,13 +37,13 @@ contract AccountLockupSettlementTest is Test, BaseTestHelper {
         // No rails created, so lockup rate should be 0
 
         // Advance blocks to create a settlement gap without a rate
-        helper.advanceBlocks(10);
+        helper.advanceTime(10);
 
         // Trigger settlement with a new deposit
         helper.makeDeposit(USER1, USER1, DEPOSIT_AMOUNT);
 
         // Verify settlement occurred
-        helper.assertAccountState(USER1, DEPOSIT_AMOUNT * 2, 0, 0, block.number);
+        helper.assertAccountState(USER1, DEPOSIT_AMOUNT * 2, 0, 0, block.timestamp);
     }
 
     function testSimpleLockupAccumulation() public {
@@ -70,7 +70,7 @@ contract AccountLockupSettlementTest is Test, BaseTestHelper {
         // Note: Settlement begins at the current block
         // Advance blocks to create a settlement gap
         uint256 elapsedBlocks = 5;
-        helper.advanceBlocks(elapsedBlocks);
+        helper.advanceTime(elapsedBlocks);
 
         // Trigger settlement with a new deposit
         helper.makeDeposit(USER1, USER1, DEPOSIT_AMOUNT);
@@ -81,7 +81,7 @@ contract AccountLockupSettlementTest is Test, BaseTestHelper {
         uint256 expectedLockup = initialLockup + accumulatedLockup;
 
         // Verify settlement occurred
-        helper.assertAccountState(USER1, DEPOSIT_AMOUNT * 2, expectedLockup, lockupRate, block.number);
+        helper.assertAccountState(USER1, DEPOSIT_AMOUNT * 2, expectedLockup, lockupRate, block.timestamp);
     }
 
     function testPartialSettlement() public {
@@ -111,7 +111,7 @@ contract AccountLockupSettlementTest is Test, BaseTestHelper {
 
         // Advance many blocks to exceed available funds
         uint256 advancedBlocks = 10;
-        helper.advanceBlocks(advancedBlocks);
+        helper.advanceTime(advancedBlocks);
 
         // Deposit additional funds, which will trigger settlement
         helper.makeDeposit(USER1, USER1, DEPOSIT_AMOUNT / 2);
@@ -154,7 +154,7 @@ contract AccountLockupSettlementTest is Test, BaseTestHelper {
         );
 
         // Roll forward many blocks
-        helper.advanceBlocks(30);
+        helper.advanceTime(30);
 
         // Trigger settlement with a new deposit
         helper.makeDeposit(USER1, USER1, DEPOSIT_AMOUNT);
@@ -168,7 +168,7 @@ contract AccountLockupSettlementTest is Test, BaseTestHelper {
             DEPOSIT_AMOUNT * 3, // expected funds
             expectedLockup, // expected lockup
             lockupRate, // expected lockup rate
-            block.number // expected settlement block
+            block.timestamp // expected settlement block
         );
     }
 
@@ -198,7 +198,7 @@ contract AccountLockupSettlementTest is Test, BaseTestHelper {
             DEPOSIT_AMOUNT,
             DEPOSIT_AMOUNT,
             0, // no payment rate
-            block.number
+            block.timestamp
         );
 
         helper.makeDeposit(USER1, USER1, 1); // Adding more funds
@@ -273,7 +273,7 @@ contract AccountLockupSettlementTest is Test, BaseTestHelper {
             60 ether, // expected funds
             60 ether, // expected lockup
             lockupRate, // expected lockup rate
-            block.number // expected settlement block
+            block.timestamp // expected settlement block
         );
     }
 }

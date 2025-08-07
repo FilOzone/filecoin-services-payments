@@ -59,14 +59,14 @@ contract PaymentsEventsTest is Test, BaseTestHelper {
 
         vm.stopPrank();
 
-        helper.advanceBlocks(5);
+        helper.advanceTime(5);
 
         vm.startPrank(OPERATOR);
 
         // Expect the event to be emitted
         // lockupCurrent = 25 ether ( from modifyRailPayment ) + 5 * 5 ether ( elapsedTime * lockupRate)
         vm.expectEmit(true, true, true, true);
-        emit Payments.AccountLockupSettled(address(testToken), USER1, 50 ether, 5 ether, block.number);
+        emit Payments.AccountLockupSettled(address(testToken), USER1, 50 ether, 5 ether, block.timestamp);
         emit Payments.RailLockupModified(railId, 5, 10, 0, 0);
 
         payments.modifyRailLockup(railId, 10, 0 ether);
@@ -212,7 +212,7 @@ contract PaymentsEventsTest is Test, BaseTestHelper {
         vm.stopPrank();
 
         // Advance blocks to accumulate payment
-        helper.advanceBlocks(5);
+        helper.advanceTime(5);
 
         vm.startPrank(USER1);
 
@@ -225,11 +225,11 @@ contract PaymentsEventsTest is Test, BaseTestHelper {
         // Expect the event to be emitted
         vm.expectEmit(true, true, false, true);
         emit Payments.RailSettled(
-            railId, totalSettledAmount, totalNetPayeeAmount, totalOperatorCommission, block.number
+            railId, totalSettledAmount, totalNetPayeeAmount, totalOperatorCommission, block.timestamp
         );
 
         // Settle rail
-        payments.settleRail{value: networkFee}(railId, block.number);
+        payments.settleRail{value: networkFee}(railId, block.timestamp);
 
         vm.stopPrank();
     }
@@ -250,7 +250,7 @@ contract PaymentsEventsTest is Test, BaseTestHelper {
 
         // expected end epoch
         Payments.RailView memory rail = payments.getRail(railId);
-        uint256 expectedEndEpoch = block.number + rail.lockupPeriod;
+        uint256 expectedEndEpoch = block.timestamp + rail.lockupPeriod;
         // Expect the event to be emitted
         vm.expectEmit(true, true, false, true);
         emit Payments.RailTerminated(railId, USER1, expectedEndEpoch);
@@ -282,7 +282,7 @@ contract PaymentsEventsTest is Test, BaseTestHelper {
         Payments.RailView memory rail = payments.getRail(railId);
 
         // Advance blocks past the end epoch
-        helper.advanceBlocks(rail.lockupPeriod + 1);
+        helper.advanceTime(rail.lockupPeriod + 1);
 
         vm.startPrank(USER1);
 
@@ -308,7 +308,7 @@ contract PaymentsEventsTest is Test, BaseTestHelper {
         // Expect the event to be emitted
         // Only check the first three indexed parameters
         vm.expectEmit(true, true, true, true);
-        emit Payments.AccountLockupSettled(address(testToken), USER2, 0, 0, block.number);
+        emit Payments.AccountLockupSettled(address(testToken), USER2, 0, 0, block.timestamp);
         emit Payments.DepositRecorded(address(testToken), USER1, USER2, 10 ether, false); // Amount not checked
 
         // Deposit tokens
@@ -335,7 +335,7 @@ contract PaymentsEventsTest is Test, BaseTestHelper {
 
         // Expect the event to be emitted
         vm.expectEmit(true, true, false, true);
-        emit Payments.AccountLockupSettled(address(testToken), signer, 0, 0, block.number);
+        emit Payments.AccountLockupSettled(address(testToken), signer, 0, 0, block.timestamp);
         emit Payments.DepositRecorded(address(testToken), signer, signer, depositAmount, true);
 
         // Deposit with permit
