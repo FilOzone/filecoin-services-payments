@@ -53,9 +53,6 @@ contract Profile is Script {
         payments.withdraw(address(token), 10**6);
 
         payments.withdrawTo(address(token), to, 10**6);
-
-
-        vm.stopBroadcast();
     }
 
     function settleRail(address sender, Payments payments, uint256 railId) public {
