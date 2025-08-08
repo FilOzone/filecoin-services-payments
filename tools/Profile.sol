@@ -6,7 +6,7 @@ import "../src/Payments.sol";
 import "../test/mocks/MockERC20.sol";
 
 contract Profile is Script {
-    function run(address sender) public {
+    function createRail(address sender) public {
         vm.deal(sender, 2000 * 10 ** 18);
 
         vm.startBroadcast();
@@ -18,7 +18,7 @@ contract Profile is Script {
         address from = sender;
         address to = sender;
         address operator = sender;
-        address validator = sender;
+        address validator = address(0);
 
         uint256 commissionRateBps = 0;
         address serviceFeeRecipient = sender;
@@ -39,25 +39,38 @@ contract Profile is Script {
         // TODO depositWithPermit
         // TODO depositWithPermitAndApproveOperator
         // TODO depositWithPermitAndIncreaseOperatorApproval
+        // TODO increaseOperatorApproval
 
 
         payments.modifyRailPayment(railId, 10**6, 0);
 
         payments.modifyRailLockup(railId, 5, 10**6);
 
-        payments.modifyRailPayment(railId, 0, 10**6);
+        payments.modifyRailPayment(railId, 10**3, 10**6);
 
         payments.settleRail{value:payments.NETWORK_FEE()}(railId, block.number);
 
         payments.withdraw(address(token), 10**6);
 
-        // increaseOperatorApproval
-        // settleRail
-        // withdraw
-        // withdrawTo
-        // terminateRail
-        // settleTerminatedRailWithoutValidation
+        payments.withdrawTo(address(token), to, 10**6);
+
 
         vm.stopBroadcast();
+    }
+
+    function settleRail(address sender, Payments payments, uint256 railId) public {
+        vm.deal(sender, 2000 * 10 ** 18);
+        vm.startBroadcast();
+
+        payments.settleRail{value:payments.NETWORK_FEE()}(railId, block.number);
+    }
+
+    function terminateRail(address sender, Payments payments, uint256 railId) public {
+        vm.deal(sender, 2000 * 10 ** 18);
+        vm.startBroadcast();
+
+        payments.terminateRail(railId);
+
+        // TODO settleTerminatedRailWithoutValidation
     }
 }
