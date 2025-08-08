@@ -173,9 +173,6 @@ contract Payments is ReentrancyGuard {
     // token => payer => array of railIds
     mapping(address => mapping(address => uint256[])) private payerRails;
 
-    // Tracks whether a token has ever had fees collected, to prevent duplicates in feeTokens
-    mapping(address => bool) public hasCollectedFees;
-
     struct SettlementState {
         uint256 totalSettledAmount;
         uint256 totalNetPayeeAmount;
