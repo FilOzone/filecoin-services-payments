@@ -1,6 +1,6 @@
 # FWS Payments Contract
 
-The FWS Payments contract enables ERC20 token payment flows through "rails" - automated payment channels between payers and recipients. The contract supports continuous rate based payments, one-time transfers, and payment validation during settlement.
+The Filecoin Pay Payments contract enables ERC20 token payment flows through "rails" - automated payment channels between payers and recipients. The contract supports continuous rate based payments, one-time transfers, and payment validation during settlement.
 
 - [Deployment Info](#deployment-info)
 - [Key Concepts](#key-concepts)
