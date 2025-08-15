@@ -40,3 +40,12 @@ deploy-devnet: chmod-deploy
 .PHONY: deploy-mainnet
 deploy-mainnet: chmod-deploy
 	./tools/deploy.sh 314
+
+# Extract just the ABI arrays into abi/ContractName.abi.json
+.PHONY: extract-abis
+extract-abis:
+	mkdir -p abi
+	@find out -type f -name '*.json' | while read file; do \
+	  name=$$(basename "$${file%.*}"); \
+	  jq '.abi' "$${file}" > "abi/$${name}.abi.json"; \
+	done
