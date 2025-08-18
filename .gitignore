@@ -10,6 +10,7 @@ out/
 # Dotenv file
 .env
 
+/abi
 .DS_Store
 LLM.md
 
